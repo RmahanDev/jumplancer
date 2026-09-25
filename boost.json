@@ -6,6 +6,7 @@
         "deploying-to-cloud",
         "laravel-best-practices",
         "testing-best-practices",
+        "livewire-development",
         "inertia-react-development"
     ]
 }
