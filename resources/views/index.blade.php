@@ -6,7 +6,7 @@
         <div class="container py-lg-4">
             <div class="row align-items-center g-4">
                 <div class="col-lg-7">
-                    <h1 class="display-5 fw-bold">Take your first jump into freelancing</h1>
+                    <h1 class="display-5 fw-bold">Take your first jump into freelancing with us !</h1>
                     <p class="lead text-white-50">Find real projects, get mentoring when you need it, and grow your career — or hire skilled freelancers for your next idea.</p>
 
                     <form action="#" method="GET" class="bg-white rounded-3 p-2 shadow-sm" role="search">
