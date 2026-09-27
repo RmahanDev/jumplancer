@@ -3,6 +3,9 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\AdminPermission;
+use App\Enums\Panel;
+use App\Enums\RoleName;
 use App\Enums\UserStatus;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -19,9 +22,9 @@ use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
- * Every person on the platform. Roles (admin, employer, freelancer, mentor) come from spatie/laravel-permission.
+ * Every person on the platform. Roles (super_admin, admin, employer, freelancer, mentor) come from spatie/laravel-permission.
  */
-#[Fillable(['name', 'email', 'phone', 'password', 'avatar_path', 'bio'])]
+#[Fillable(['name', 'username', 'email', 'phone', 'password', 'avatar_path', 'bio'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -295,5 +298,94 @@ class User extends Authenticatable
     public function isSuspended(): bool
     {
         return in_array($this->status, [UserStatus::Suspended, UserStatus::Banned], true);
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole(RoleName::SuperAdmin);
+    }
+
+    /**
+     * Super admins and admins, i.e. accounts managed from the "admins" page.
+     */
+    public function isStaff(): bool
+    {
+        return $this->hasAnyRole([RoleName::SuperAdmin, RoleName::Admin]);
+    }
+
+    /**
+     * The super admin created from .env (config/jumplancer.php). Nobody can demote, suspend or delete it.
+     */
+    public function isRootSuperAdmin(): bool
+    {
+        return $this->username !== null
+            && $this->username === config('jumplancer.super_admin.username')
+            && $this->isSuperAdmin();
+    }
+
+    /**
+     * Staff permissions this user holds. Super admins implicitly hold all of them.
+     *
+     * @return list<string>
+     */
+    public function staffPermissions(): array
+    {
+        if ($this->isSuperAdmin()) {
+            return AdminPermission::values();
+        }
+
+        $held = $this->getAllPermissions()->pluck('name')->all();
+
+        return array_values(array_intersect(AdminPermission::values(), $held));
+    }
+
+    /**
+     * Dashboards this user can open, in landing priority order.
+     *
+     * @return list<Panel>
+     */
+    public function panels(): array
+    {
+        $roleNames = $this->getRoleNames()->all();
+
+        return array_values(array_filter(
+            Panel::cases(),
+            fn (Panel $panel): bool => array_intersect(array_column($panel->roles(), 'value'), $roleNames) !== [],
+        ));
+    }
+
+    public function homePanel(): ?Panel
+    {
+        return $this->panels()[0] ?? null;
+    }
+
+    /**
+     * The user's wallet with every column loaded, created on first use.
+     */
+    public function ensureWallet(): Wallet
+    {
+        $wallet = $this->wallet()->firstOrCreate();
+
+        return $wallet->wasRecentlyCreated ? $wallet->refresh() : $wallet;
+    }
+
+    /**
+     * Create the profile rows and wallet that the user's marketplace roles need.
+     */
+    public function ensureRoleProfiles(): void
+    {
+        if ($this->hasRole(RoleName::Freelancer)) {
+            $this->freelancerProfile()->firstOrCreate();
+        }
+
+        if ($this->hasRole(RoleName::Employer)) {
+            $this->employerProfile()->firstOrCreate();
+        }
+
+        if ($this->hasRole(RoleName::Mentor)) {
+            $this->mentorProfile()->firstOrCreate();
+        }
+
+        $this->wallet()->firstOrCreate();
     }
 }

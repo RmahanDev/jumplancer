@@ -1,0 +1,428 @@
+// App shell: sidebar (at the inline start = right in RTL), sticky topbar and the content column.
+.jl-app {
+    --jl-sidebar-w: 268px;
+    --jl-sidebar-w-collapsed: 80px;
+    --jl-topbar-h: 64px;
+    min-height: 100vh;
+    background: var(--jl-page);
+}
+
+.jl-sidebar {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    z-index: 1040;
+    display: flex;
+    flex-direction: column;
+    width: var(--jl-sidebar-w);
+    background: var(--jl-sidebar-bg);
+    border-inline-end: 1px solid var(--jl-border);
+    transition: width .22s cubic-bezier(.2, .7, .2, 1), transform .28s cubic-bezier(.2, .7, .2, 1);
+}
+
+.jl-sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    height: var(--jl-topbar-h);
+    padding-inline: 1.25rem;
+    border-bottom: 1px solid var(--jl-border);
+    flex-shrink: 0;
+    color: var(--jl-text);
+    text-decoration: none;
+
+    &:hover {
+        text-decoration: none;
+        color: var(--jl-text);
+    }
+}
+
+.jl-sidebar-panel-label {
+    display: block;
+    font-size: .72rem;
+    color: var(--jl-muted);
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.jl-sidebar-nav {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: .9rem .75rem 1rem;
+}
+
+.jl-nav-group {
+    margin: 1.1rem .65rem .35rem;
+    font-size: .72rem;
+    font-weight: 600;
+    color: var(--jl-muted);
+    white-space: nowrap;
+
+    &:first-child {
+        margin-top: .1rem;
+    }
+}
+
+.jl-nav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    min-height: 42px;
+    padding: .45rem .7rem;
+    margin-bottom: 2px;
+    border-radius: .65rem;
+    color: var(--jl-nav-text);
+    font-size: .9rem;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background-color .15s ease, color .15s ease;
+
+    > .bi {
+        font-size: 1.15rem;
+        width: 1.35rem;
+        text-align: center;
+        flex-shrink: 0;
+        transition: transform .2s ease;
+    }
+
+    .jl-nav-label {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    // The shortcut hint floats over the end of the label on hover, so it never takes
+    // room from the label (long Persian labels would otherwise be cut short).
+    .jl-nav-kbd {
+        position: absolute;
+        inset-inline-end: .55rem;
+        top: 50%;
+        padding-inline-start: .6rem;
+        background: inherit;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-50%);
+        transition: opacity .15s ease;
+    }
+
+    &:hover {
+        background: var(--jl-nav-hover);
+        color: var(--jl-text);
+        text-decoration: none;
+
+        > .bi {
+            transform: scale(1.08);
+        }
+
+        .jl-nav-kbd {
+            opacity: 1;
+        }
+    }
+
+    &.active {
+        background: var(--jl-nav-active);
+        color: var(--jl-nav-active-text);
+        font-weight: 600;
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset-inline-start: -.75rem;
+            inset-block: .55rem;
+            width: 4px;
+            border-radius: 0 4px 4px 0;
+            background: var(--jl-accent);
+        }
+    }
+}
+
+[dir='rtl'] .jl-nav-link.active::before {
+    border-radius: 4px 0 0 4px;
+}
+
+.jl-nav-badge {
+    min-width: 1.35rem;
+    height: 1.35rem;
+    padding-inline: .4rem;
+    border-radius: 50rem;
+    background: var(--jl-accent);
+    color: #1b1203;
+    font-size: .72rem;
+    font-weight: 700;
+    line-height: 1.35rem;
+    text-align: center;
+}
+
+.jl-sidebar-footer {
+    padding: .75rem;
+    border-top: 1px solid var(--jl-border);
+    flex-shrink: 0;
+}
+
+// Collapsed (desktop): icons only; labels become tooltips.
+.jl-app.is-collapsed {
+    .jl-sidebar {
+        width: var(--jl-sidebar-w-collapsed);
+    }
+
+    .jl-main {
+        margin-inline-start: var(--jl-sidebar-w-collapsed);
+    }
+
+    .jl-sidebar-brand {
+        justify-content: center;
+        padding-inline: .5rem;
+    }
+
+    .jl-sidebar-brand-text,
+    .jl-nav-label,
+    .jl-nav-kbd,
+    .jl-nav-group,
+    .jl-sidebar-footer-text {
+        display: none;
+    }
+
+    .jl-nav-link {
+        justify-content: center;
+        padding-inline: .5rem;
+    }
+
+    .jl-nav-badge {
+        position: absolute;
+        inset-block-start: .2rem;
+        inset-inline-end: .3rem;
+        min-width: .6rem;
+        height: .6rem;
+        padding: 0;
+        font-size: 0;
+        animation: jl-pulse-ring 1.6s infinite;
+    }
+}
+
+.jl-main {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    margin-inline-start: var(--jl-sidebar-w);
+    transition: margin .22s cubic-bezier(.2, .7, .2, 1);
+    min-width: 0;
+}
+
+.jl-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    height: var(--jl-topbar-h);
+    padding-inline: 1.5rem;
+    background: var(--jl-topbar-bg);
+    border-bottom: 1px solid var(--jl-border);
+    backdrop-filter: saturate(160%) blur(12px);
+}
+
+.jl-topbar-title {
+    min-width: 0;
+    font-weight: 700;
+    font-size: 1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.jl-icon-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border: 1px solid transparent;
+    border-radius: .7rem;
+    background: transparent;
+    color: var(--jl-text-2);
+    font-size: 1.15rem;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease, transform .15s ease;
+
+    &:hover {
+        background: var(--jl-surface-3);
+        color: var(--jl-text);
+    }
+
+    &:active {
+        transform: scale(.94);
+    }
+
+    &.is-bordered {
+        border-color: var(--jl-border);
+    }
+}
+
+.jl-search-trigger {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    width: min(340px, 42vw);
+    height: 40px;
+    padding-inline: .85rem .5rem;
+    border: 1px solid var(--jl-border);
+    border-radius: .7rem;
+    background: var(--jl-surface-2);
+    color: var(--jl-muted);
+    font-size: .875rem;
+    text-align: start;
+    transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+
+    &:hover {
+        border-color: var(--jl-border-strong);
+        background: var(--jl-surface);
+        box-shadow: var(--jl-shadow-xs);
+    }
+
+    span {
+        flex: 1;
+    }
+}
+
+.jl-content {
+    flex: 1;
+    width: 100%;
+    max-width: 1480px;
+    margin-inline: auto;
+    padding: 1.75rem 1.75rem 2.5rem;
+}
+
+.jl-footer {
+    padding: 1rem 1.75rem 1.5rem;
+    color: var(--jl-muted);
+    font-size: .8rem;
+}
+
+.jl-page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+
+    h1 {
+        margin: 0;
+        font-size: 1.45rem;
+        font-weight: 800;
+    }
+
+    p {
+        margin: .25rem 0 0;
+        color: var(--jl-text-2);
+        font-size: .9rem;
+    }
+}
+
+.jl-page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+}
+
+.jl-impersonation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .75rem;
+    padding: .45rem 1rem;
+    background: var(--jl-accent-soft);
+    border-bottom: 1px solid rgba(var(--jl-accent-rgb), .35);
+    color: var(--jl-accent-text);
+    font-size: .875rem;
+    font-weight: 600;
+}
+
+.jl-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1035;
+    background: var(--jl-backdrop);
+    animation: jl-fade .2s ease both;
+}
+
+// Tablets and phones: the sidebar becomes an off-canvas drawer.
+@media (max-width: 991.98px) {
+    .jl-app .jl-main,
+    .jl-app.is-collapsed .jl-main {
+        margin-inline-start: 0;
+    }
+
+    .jl-app.is-collapsed .jl-sidebar {
+        width: var(--jl-sidebar-w);
+    }
+
+    .jl-sidebar {
+        box-shadow: var(--jl-shadow-lg);
+        visibility: hidden;
+    }
+
+    [dir='rtl'] .jl-sidebar {
+        transform: translateX(105%);
+    }
+
+    [dir='ltr'] .jl-sidebar {
+        transform: translateX(-105%);
+    }
+
+    .jl-app.is-mobile-open .jl-sidebar {
+        transform: none;
+        visibility: visible;
+    }
+
+    .jl-topbar {
+        padding-inline: .9rem;
+    }
+
+    .jl-content {
+        padding: 1.15rem 1rem 2rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .jl-search-trigger {
+        width: 40px;
+        padding: 0;
+        justify-content: center;
+
+        span,
+        kbd {
+            display: none;
+        }
+    }
+
+    .jl-page-header h1 {
+        font-size: 1.25rem;
+    }
+}
+
+// Collapsed sidebar: labels become tooltips, so they must not be clipped by the scroll box.
+.jl-app.is-collapsed .jl-sidebar-nav {
+    overflow: visible;
+}
+
+.jl-skip-link:focus {
+    position: fixed;
+    inset-block-start: .75rem;
+    inset-inline-start: .75rem;
+    z-index: 1100;
+    padding: .5rem 1rem;
+    border-radius: .6rem;
+    background: var(--jl-primary);
+    color: #fff;
+}
+
+.jl-content:focus {
+    outline: 0;
+}

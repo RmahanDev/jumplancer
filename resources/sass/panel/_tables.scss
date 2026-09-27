@@ -1,0 +1,220 @@
+// Data tables: toolbar, sticky header, row hover, selection, mobile cards and pagination.
+.jl-table-card {
+    overflow: hidden;
+}
+
+.jl-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .6rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--jl-border);
+
+    .jl-toolbar-search {
+        flex: 1 1 240px;
+        max-width: 380px;
+    }
+
+    .form-select {
+        width: auto;
+        min-width: 150px;
+    }
+}
+
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--jl-text);
+    --bs-table-border-color: var(--jl-border);
+    --bs-table-hover-bg: var(--jl-surface-2);
+    --bs-table-hover-color: var(--jl-text);
+    margin-bottom: 0;
+}
+
+.jl-table {
+    thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: var(--jl-surface-2);
+        color: var(--jl-text-2);
+        font-size: .78rem;
+        font-weight: 600;
+        white-space: nowrap;
+        border-bottom-width: 1px;
+    }
+
+    tbody tr {
+        transition: background-color .12s ease;
+        animation: jl-fade .25s ease both;
+    }
+
+    tbody td {
+        vertical-align: middle;
+        font-size: .875rem;
+    }
+
+    .jl-sort {
+        display: inline-flex;
+        align-items: center;
+        gap: .3rem;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: inherit;
+        font: inherit;
+
+        .bi {
+            opacity: .45;
+            font-size: .8rem;
+        }
+
+        &.is-active .bi {
+            opacity: 1;
+            color: var(--jl-primary-text);
+        }
+    }
+
+    .jl-row-actions {
+        width: 1%;
+        white-space: nowrap;
+        text-align: end;
+    }
+
+    tr.is-muted td {
+        opacity: .6;
+    }
+}
+
+.jl-table-wrap {
+    overflow-x: auto;
+}
+
+.jl-table-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .85rem 1.25rem;
+    border-top: 1px solid var(--jl-border);
+    color: var(--jl-muted);
+    font-size: .82rem;
+}
+
+.jl-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .3rem;
+
+    a,
+    span {
+        display: inline-grid;
+        place-items: center;
+        min-width: 34px;
+        height: 34px;
+        padding-inline: .55rem;
+        border: 1px solid var(--jl-border);
+        border-radius: .6rem;
+        background: var(--jl-surface);
+        color: var(--jl-text-2);
+        font-size: .82rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+    }
+
+    a:hover {
+        border-color: var(--jl-border-strong);
+        background: var(--jl-surface-3);
+        color: var(--jl-text);
+    }
+
+    .is-active {
+        border-color: var(--jl-primary);
+        background: var(--jl-primary);
+        color: #fff;
+    }
+
+    .is-disabled {
+        opacity: .45;
+    }
+}
+
+// Below md, rows become stacked cards so nothing scrolls sideways on phones.
+.jl-cards {
+    display: none;
+}
+
+@media (max-width: 767.98px) {
+    .jl-table-wrap.has-cards {
+        display: none;
+    }
+
+    .jl-cards {
+        display: grid;
+        gap: .6rem;
+        padding: .75rem;
+    }
+
+    .jl-card-row {
+        padding: .85rem .95rem;
+        border: 1px solid var(--jl-border);
+        border-radius: .9rem;
+        background: var(--jl-surface);
+        animation: jl-rise .3s ease both;
+
+        dl {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: .35rem .9rem;
+            margin: .6rem 0 0;
+            font-size: .84rem;
+        }
+
+        dt {
+            color: var(--jl-muted);
+            font-weight: 500;
+        }
+
+        dd {
+            margin: 0;
+            min-width: 0;
+            text-align: end;
+        }
+    }
+
+    .jl-toolbar .form-select {
+        flex: 1 1 140px;
+    }
+}
+
+// Key-value details inside modals
+.jl-details {
+    display: grid;
+    grid-template-columns: minmax(120px, auto) 1fr;
+    gap: .55rem 1.25rem;
+    margin: 0;
+    font-size: .88rem;
+
+    dt {
+        color: var(--jl-muted);
+        font-weight: 500;
+    }
+
+    dd {
+        margin: 0;
+        min-width: 0;
+        word-break: break-word;
+    }
+}
+
+.jl-text-block {
+    padding: .85rem 1rem;
+    border-radius: .8rem;
+    background: var(--jl-surface-2);
+    border: 1px solid var(--jl-border);
+    font-size: .9rem;
+    line-height: 1.9;
+    white-space: pre-line;
+}

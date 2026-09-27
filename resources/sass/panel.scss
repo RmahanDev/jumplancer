@@ -1,0 +1,77 @@
+// Jump Lancer design system for the dashboards and the auth pages.
+//
+// Bootstrap 5.3 compiled from source with the brand colors, flipped to right-to-left by RTLCSS
+// (see vite.config.js), in light and dark color modes (data-bs-theme on <html>).
+// Everything custom lives in resources/sass/panel/* and is written with logical properties
+// (margin-inline-start ...), so it is excluded from flipping with the rtl:ignore block below.
+
+// Fonts and icons (Vite inlines these CSS imports and copies the font files).
+@import 'vazirmatn/Vazirmatn-font-face.css';
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+
+@import 'bootstrap/scss/functions';
+@import 'panel/variables';
+@import 'bootstrap/scss/variables';
+@import 'panel/variables-dark';
+@import 'bootstrap/scss/variables-dark';
+
+// The logo orange becomes a Bootstrap theme color: .btn-accent, .text-accent, .bg-accent-subtle ...
+$theme-colors: map-merge($theme-colors, ('accent': $jl-accent));
+
+@import 'bootstrap/scss/maps';
+
+$theme-colors-text: map-merge($theme-colors-text, ('accent': $jl-accent-text));
+$theme-colors-bg-subtle: map-merge($theme-colors-bg-subtle, ('accent': $jl-accent-bg-subtle));
+$theme-colors-border-subtle: map-merge($theme-colors-border-subtle, ('accent': $jl-accent-border-subtle));
+$theme-colors-text-dark: map-merge($theme-colors-text-dark, ('accent': $jl-accent));
+$theme-colors-bg-subtle-dark: map-merge($theme-colors-bg-subtle-dark, ('accent': rgba($jl-accent, .16)));
+$theme-colors-border-subtle-dark: map-merge($theme-colors-border-subtle-dark, ('accent': rgba($jl-accent, .4)));
+
+@import 'bootstrap/scss/mixins';
+@import 'bootstrap/scss/utilities';
+
+@import 'bootstrap/scss/root';
+@import 'bootstrap/scss/reboot';
+@import 'bootstrap/scss/type';
+@import 'bootstrap/scss/images';
+@import 'bootstrap/scss/containers';
+@import 'bootstrap/scss/grid';
+@import 'bootstrap/scss/tables';
+@import 'bootstrap/scss/forms';
+@import 'bootstrap/scss/buttons';
+@import 'bootstrap/scss/transitions';
+@import 'bootstrap/scss/dropdown';
+@import 'bootstrap/scss/button-group';
+@import 'bootstrap/scss/nav';
+@import 'bootstrap/scss/navbar';
+@import 'bootstrap/scss/card';
+@import 'bootstrap/scss/accordion';
+@import 'bootstrap/scss/breadcrumb';
+@import 'bootstrap/scss/pagination';
+@import 'bootstrap/scss/badge';
+@import 'bootstrap/scss/alert';
+@import 'bootstrap/scss/progress';
+@import 'bootstrap/scss/list-group';
+@import 'bootstrap/scss/close';
+@import 'bootstrap/scss/toasts';
+@import 'bootstrap/scss/modal';
+@import 'bootstrap/scss/tooltip';
+@import 'bootstrap/scss/popover';
+@import 'bootstrap/scss/spinners';
+@import 'bootstrap/scss/offcanvas';
+@import 'bootstrap/scss/placeholders';
+@import 'bootstrap/scss/helpers';
+@import 'bootstrap/scss/utilities/api';
+
+/*rtl:begin:ignore*/
+@import 'panel/tokens';
+@import 'panel/base';
+@import 'panel/layout';
+@import 'panel/components';
+@import 'panel/forms';
+@import 'panel/tables';
+@import 'panel/charts';
+@import 'panel/overlays';
+@import 'panel/pages';
+@import 'panel/auth';
+/*rtl:end:ignore*/

@@ -13,11 +13,11 @@ class BadgeSeeder extends Seeder
     public function run(): void
     {
         $badges = [
-            'first_proposal' => ['First Step', 'Sent your first proposal'],
-            'first_contract' => ['First Deal', 'Won your first contract'],
-            'first_five_star' => ['Five Stars', 'Received your first 5-star review'],
-            'market_ready' => ['Market Ready', 'Reached a readiness score of 70+'],
-            'mentorship_graduate' => ['Graduate', 'Completed a mentorship program'],
+            'first_proposal' => ['قدم اول', 'اولین پیشنهادت را فرستادی'],
+            'first_contract' => ['اولین قرارداد', 'اولین قراردادت را گرفتی'],
+            'first_five_star' => ['پنج ستاره', 'اولین نظر پنج‌ستاره را گرفتی'],
+            'market_ready' => ['آماده‌ی بازار', 'امتیاز آمادگی‌ات به ۷۰ رسید'],
+            'mentorship_graduate' => ['فارغ‌التحصیل منتورینگ', 'یک برنامه‌ی منتورینگ را کامل کردی'],
         ];
 
         foreach ($badges as $code => [$name, $description]) {

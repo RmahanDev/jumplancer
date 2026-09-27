@@ -1,0 +1,168 @@
+// Base: typography for Persian text, scrollbars, theme transitions, focus and motion.
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    background-color: var(--jl-page);
+    color: var(--jl-text);
+    font-feature-settings: 'kern';
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -.01em;
+}
+
+// Latin runs (emails, usernames, URLs, codes) stay left-to-right inside RTL text.
+.ltr {
+    direction: ltr;
+    unicode-bidi: isolate;
+    text-align: start;
+}
+
+.num {
+    font-variant-numeric: tabular-nums;
+}
+
+.min-w-0 {
+    min-width: 0;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.text-muted-2 {
+    color: var(--jl-text-2) !important;
+}
+
+.text-primary-emphasis-soft {
+    color: var(--jl-primary-text) !important;
+}
+
+.fw-semibold {
+    font-weight: 600 !important;
+}
+
+::selection {
+    background: rgba(var(--jl-accent-rgb), .28);
+}
+
+// Thin scrollbars that follow the theme.
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--jl-scrollbar) transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: var(--jl-scrollbar);
+    border-radius: 8px;
+}
+
+// Smooth color change when the theme toggles (added for ~300ms by lib/theme.js).
+.jl-theme-transition,
+.jl-theme-transition *,
+.jl-theme-transition *::before,
+.jl-theme-transition *::after {
+    transition: background-color .3s ease, border-color .3s ease, color .3s ease, fill .3s ease, stroke .3s ease !important;
+}
+
+:focus-visible {
+    outline: 2px solid var(--jl-primary-text);
+    outline-offset: 2px;
+}
+
+.btn:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible {
+    outline: none;
+}
+
+// Entrance animation for cards and rows.
+@keyframes jl-rise {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes jl-fade {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes jl-pop {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes jl-shimmer {
+    0% {
+        background-position: 100% 0;
+    }
+
+    100% {
+        background-position: -100% 0;
+    }
+}
+
+@keyframes jl-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes jl-pulse-ring {
+    0% {
+        box-shadow: 0 0 0 0 rgba(var(--jl-accent-rgb), .45);
+    }
+
+    100% {
+        box-shadow: 0 0 0 10px rgba(var(--jl-accent-rgb), 0);
+    }
+}
+
+.jl-rise {
+    animation: jl-rise .35s cubic-bezier(.2, .7, .2, 1) both;
+}
+
+@for $i from 1 through 8 {
+    .jl-rise-#{$i} {
+        animation-delay: #{$i * 45}ms;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

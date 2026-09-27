@@ -38,9 +38,9 @@ class DatabaseSeederTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $this->seed(DatabaseSeeder::class);
 
-        $this->assertSame(4, Role::count());
+        $this->assertSame(5, Role::count());
         $this->assertSame(12, Category::count());
-        $this->assertSame(13, Skill::count());
+        $this->assertSame(21, Skill::count());
         $this->assertSame(5, Badge::count());
         $this->assertSame(7, PlatformSetting::count());
     }
