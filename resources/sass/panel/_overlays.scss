@@ -1,0 +1,326 @@
+// Modals (React-controlled Bootstrap markup), command palette and toasts.
+.modal {
+    --bs-modal-bg: var(--jl-surface);
+    --bs-modal-border-color: var(--jl-border);
+    --bs-modal-header-border-color: var(--jl-border);
+    --bs-modal-footer-border-color: var(--jl-border);
+    --bs-modal-color: var(--jl-text);
+}
+
+.jl-modal {
+    display: block;
+    overflow-y: auto;
+}
+
+.jl-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    background: var(--jl-backdrop);
+    backdrop-filter: blur(2px);
+    animation: jl-fade .18s ease both;
+
+    &.is-leaving {
+        animation: jl-fade .15s ease reverse both;
+    }
+}
+
+.jl-modal .modal-dialog {
+    animation: jl-pop .22s cubic-bezier(.2, .7, .2, 1) both;
+}
+
+.jl-modal.is-leaving .modal-dialog {
+    animation: jl-pop .15s ease reverse both;
+}
+
+.jl-modal .modal-content {
+    box-shadow: var(--jl-shadow-lg);
+}
+
+.jl-modal .modal-header {
+    gap: .75rem;
+    padding: 1.1rem 1.35rem;
+
+    .modal-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+    }
+
+    .jl-modal-subtitle {
+        margin: .1rem 0 0;
+        color: var(--jl-muted);
+        font-size: .8rem;
+    }
+}
+
+.jl-modal-icon {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: .8rem;
+    background: var(--jl-primary-soft);
+    color: var(--jl-primary-text);
+    font-size: 1.15rem;
+
+    &.is-danger {
+        background: var(--bs-danger-bg-subtle);
+        color: var(--bs-danger-text-emphasis);
+    }
+
+    &.is-accent {
+        background: var(--jl-accent-soft);
+        color: var(--jl-accent-text);
+    }
+}
+
+.jl-modal .modal-body {
+    padding: 1.25rem 1.35rem;
+}
+
+.jl-modal .modal-footer {
+    justify-content: space-between;
+    padding: .85rem 1.35rem;
+    background: var(--jl-surface-2);
+    border-bottom-left-radius: var(--bs-modal-inner-border-radius);
+    border-bottom-right-radius: var(--bs-modal-inner-border-radius);
+
+    .jl-modal-hint {
+        color: var(--jl-muted);
+        font-size: .76rem;
+    }
+}
+
+[data-bs-theme='dark'] .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+// Command palette (Ctrl + K)
+.jl-palette {
+    position: fixed;
+    inset-inline: 0;
+    top: 12vh;
+    z-index: 1090;
+    width: min(640px, calc(100vw - 2rem));
+    margin-inline: auto;
+    border: 1px solid var(--jl-border);
+    border-radius: 1.1rem;
+    background: var(--jl-surface);
+    box-shadow: var(--jl-shadow-lg);
+    overflow: hidden;
+    animation: jl-pop .18s cubic-bezier(.2, .7, .2, 1) both;
+}
+
+.jl-palette-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1085;
+    background: var(--jl-backdrop);
+    animation: jl-fade .15s ease both;
+}
+
+.jl-palette-input {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .9rem 1.1rem;
+    border-bottom: 1px solid var(--jl-border);
+
+    .bi {
+        color: var(--jl-muted);
+        font-size: 1.15rem;
+    }
+
+    input {
+        flex: 1;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--jl-text);
+        font-size: 1rem;
+    }
+}
+
+.jl-palette-list {
+    max-height: min(420px, 60vh);
+    overflow-y: auto;
+    padding: .45rem;
+}
+
+.jl-palette-group {
+    padding: .55rem .7rem .3rem;
+    color: var(--jl-muted);
+    font-size: .72rem;
+    font-weight: 600;
+}
+
+.jl-palette-item {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    width: 100%;
+    padding: .6rem .75rem;
+    border: 0;
+    border-radius: .7rem;
+    background: transparent;
+    color: var(--jl-text);
+    font-size: .9rem;
+    text-align: start;
+
+    .bi {
+        width: 1.3rem;
+        color: var(--jl-muted);
+        font-size: 1.05rem;
+        text-align: center;
+    }
+
+    .jl-palette-label {
+        flex: 1;
+    }
+
+    &.is-active {
+        background: var(--jl-primary-soft);
+        color: var(--jl-primary-text);
+
+        .bi {
+            color: var(--jl-primary-text);
+        }
+    }
+}
+
+.jl-palette-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: .6rem 1.1rem;
+    border-top: 1px solid var(--jl-border);
+    background: var(--jl-surface-2);
+    color: var(--jl-muted);
+    font-size: .74rem;
+
+    span {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+    }
+}
+
+// Toasts: bottom corner at the inline end (left in RTL).
+.jl-toaster {
+    position: fixed;
+    inset-block-end: 1.25rem;
+    inset-inline-end: 1.25rem;
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+    width: min(380px, calc(100vw - 2rem));
+    pointer-events: none;
+}
+
+.jl-toast {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: .7rem;
+    padding: .85rem .9rem;
+    border: 1px solid var(--jl-border);
+    border-radius: .9rem;
+    background: var(--jl-surface);
+    box-shadow: var(--jl-shadow-lg);
+    color: var(--jl-text);
+    font-size: .88rem;
+    overflow: hidden;
+    pointer-events: auto;
+    animation: jl-pop .25s cubic-bezier(.2, .7, .2, 1) both;
+
+    &.is-leaving {
+        animation: jl-pop .2s ease reverse both;
+    }
+
+    > .bi {
+        margin-top: .1rem;
+        font-size: 1.15rem;
+    }
+
+    .jl-toast-body {
+        flex: 1;
+        line-height: 1.7;
+    }
+
+    .jl-toast-close {
+        border: 0;
+        background: none;
+        color: var(--jl-muted);
+        padding: 0 .1rem;
+        font-size: 1rem;
+    }
+
+    .jl-toast-progress {
+        position: absolute;
+        inset-inline: 0;
+        bottom: 0;
+        height: 3px;
+        background: currentColor;
+        opacity: .35;
+        transform-origin: var(--jl-progress-origin, right);
+        animation: jl-toast-timer linear forwards;
+    }
+
+    &.is-success > .bi,
+    &.is-success .jl-toast-progress {
+        color: var(--bs-success);
+    }
+
+    &.is-danger > .bi,
+    &.is-danger .jl-toast-progress {
+        color: var(--bs-danger);
+    }
+
+    &.is-warning > .bi,
+    &.is-warning .jl-toast-progress {
+        color: var(--jl-accent);
+    }
+
+    &.is-info > .bi,
+    &.is-info .jl-toast-progress {
+        color: var(--jl-primary-text);
+    }
+}
+
+[dir='ltr'] .jl-toast .jl-toast-progress {
+    --jl-progress-origin: left;
+}
+
+@keyframes jl-toast-timer {
+    from {
+        transform: scaleX(1);
+    }
+
+    to {
+        transform: scaleX(0);
+    }
+}
+
+.jl-shortcuts {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: .35rem 1.5rem;
+
+    .jl-shortcut-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: .45rem 0;
+        border-bottom: 1px dashed var(--jl-border);
+        font-size: .86rem;
+    }
+
+    .jl-keys {
+        display: inline-flex;
+        gap: .25rem;
+        direction: ltr;
+    }
+}

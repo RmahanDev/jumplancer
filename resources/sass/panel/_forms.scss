@@ -1,0 +1,376 @@
+// Form controls: theme-aware inputs, input adornments, switches, dropzone and the Jalali date picker.
+.form-control,
+.form-select {
+    background-color: var(--jl-input-bg);
+    border-color: var(--jl-border-strong);
+    color: var(--jl-text);
+    transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+
+    &:hover:not(:disabled):not(:focus) {
+        border-color: color-mix(in srgb, var(--jl-border-strong), var(--jl-text) 12%);
+    }
+
+    &:focus {
+        background-color: var(--jl-input-bg);
+        border-color: var(--jl-primary-text);
+        color: var(--jl-text);
+        box-shadow: var(--jl-ring);
+    }
+
+    &::placeholder {
+        color: var(--jl-muted);
+        opacity: .8;
+    }
+}
+
+.form-label {
+    color: var(--jl-text);
+    font-size: .86rem;
+}
+
+.form-text {
+    color: var(--jl-muted);
+    font-size: .78rem;
+}
+
+.invalid-feedback {
+    font-size: .8rem;
+}
+
+.jl-required::after {
+    content: ' *';
+    color: var(--bs-danger);
+}
+
+// Input with a leading icon and/or trailing unit ("تومان", "روز").
+.jl-input {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    > .form-control,
+    > .form-select {
+        flex: 1;
+    }
+
+    .jl-input-icon {
+        position: absolute;
+        inset-inline-start: .85rem;
+        color: var(--jl-muted);
+        pointer-events: none;
+        font-size: 1rem;
+    }
+
+    .jl-input-icon ~ .form-control {
+        padding-inline-start: 2.4rem;
+    }
+
+    .jl-input-unit {
+        position: absolute;
+        inset-inline-end: .85rem;
+        color: var(--jl-muted);
+        font-size: .8rem;
+        pointer-events: none;
+    }
+
+    &.has-unit > .form-control {
+        padding-inline-end: 3.8rem;
+    }
+
+    .jl-input-action {
+        position: absolute;
+        inset-inline-end: .35rem;
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border: 0;
+        border-radius: .5rem;
+        background: transparent;
+        color: var(--jl-muted);
+
+        &:hover {
+            background: var(--jl-surface-3);
+            color: var(--jl-text);
+        }
+    }
+
+    &.has-action > .form-control {
+        padding-inline-end: 2.8rem;
+    }
+}
+
+.jl-hint-amount {
+    margin-top: .25rem;
+    color: var(--jl-muted);
+    font-size: .76rem;
+}
+
+// Switch rows: label on the start, switch on the end, whole row clickable.
+.jl-switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .7rem .9rem;
+    border: 1px solid var(--jl-border);
+    border-radius: .75rem;
+    background: var(--jl-surface-2);
+    cursor: pointer;
+    transition: border-color .15s ease, background-color .15s ease;
+
+    &:hover {
+        border-color: var(--jl-border-strong);
+    }
+
+    .form-check-input {
+        float: none;
+        margin: 0;
+        width: 2.6em;
+        height: 1.4em;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .jl-switch-text {
+        display: flex;
+        flex-direction: column;
+
+        strong {
+            font-size: .88rem;
+            font-weight: 600;
+        }
+
+        small {
+            color: var(--jl-muted);
+            font-size: .76rem;
+        }
+    }
+}
+
+.form-check-input {
+    background-color: var(--jl-input-bg);
+    border-color: var(--jl-border-strong);
+
+    &:checked {
+        background-color: var(--jl-primary);
+        border-color: var(--jl-primary);
+    }
+
+    &:focus {
+        box-shadow: var(--jl-ring);
+    }
+}
+
+// Selectable option cards (permissions, account type ...).
+.jl-option-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: .6rem;
+}
+
+.jl-option {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: .65rem;
+    padding: .75rem .85rem;
+    border: 1px solid var(--jl-border);
+    border-radius: .8rem;
+    background: var(--jl-surface);
+    cursor: pointer;
+    transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+
+    input {
+        margin-top: .3rem;
+        flex-shrink: 0;
+    }
+
+    strong {
+        display: block;
+        font-size: .86rem;
+    }
+
+    small {
+        display: block;
+        color: var(--jl-muted);
+        font-size: .76rem;
+        line-height: 1.55;
+    }
+
+    &:hover {
+        border-color: var(--jl-border-strong);
+    }
+
+    &.is-checked {
+        border-color: var(--jl-primary-text);
+        background: var(--jl-primary-soft);
+        box-shadow: 0 0 0 1px var(--jl-primary-text) inset;
+    }
+
+    &.is-disabled {
+        opacity: .55;
+        cursor: not-allowed;
+    }
+}
+
+// File dropzone
+.jl-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .35rem;
+    padding: 1.25rem;
+    border: 2px dashed var(--jl-border-strong);
+    border-radius: .9rem;
+    background: var(--jl-surface-2);
+    color: var(--jl-text-2);
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s ease, background-color .15s ease;
+
+    .bi {
+        font-size: 1.6rem;
+        color: var(--jl-primary-text);
+    }
+
+    &:hover,
+    &.is-dragging {
+        border-color: var(--jl-primary-text);
+        background: var(--jl-primary-soft);
+    }
+}
+
+.jl-file-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-top: .6rem;
+}
+
+.jl-file {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    max-width: 100%;
+    padding: .3rem .4rem .3rem .65rem;
+    border: 1px solid var(--jl-border);
+    border-radius: .6rem;
+    background: var(--jl-surface);
+    font-size: .78rem;
+
+    span {
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.jl-file-thumb {
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: .4rem;
+    object-fit: cover;
+    border: 1px solid var(--jl-border);
+}
+
+// Jalali date picker popover
+.jl-datepicker {
+    position: absolute;
+    z-index: 1070;
+    inset-block-start: calc(100% + 6px);
+    inset-inline-start: 0;
+    width: 292px;
+    padding: .75rem;
+    border: 1px solid var(--jl-border);
+    border-radius: 1rem;
+    background: var(--jl-surface);
+    box-shadow: var(--jl-shadow-lg);
+    animation: jl-pop .16s ease both;
+}
+
+.jl-datepicker-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: .5rem;
+
+    strong {
+        font-size: .9rem;
+    }
+}
+
+.jl-datepicker-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    text-align: center;
+
+    .jl-dp-weekday {
+        padding: .2rem 0;
+        color: var(--jl-muted);
+        font-size: .72rem;
+        font-weight: 600;
+    }
+
+    button {
+        aspect-ratio: 1;
+        border: 0;
+        border-radius: .55rem;
+        background: transparent;
+        color: var(--jl-text);
+        font-size: .82rem;
+        transition: background-color .12s ease, color .12s ease;
+
+        &:hover:not(:disabled) {
+            background: var(--jl-surface-3);
+        }
+
+        &.is-today {
+            box-shadow: inset 0 0 0 1px var(--jl-accent);
+        }
+
+        &.is-selected {
+            background: var(--jl-primary);
+            color: #fff;
+            font-weight: 700;
+        }
+
+        &:disabled {
+            color: var(--jl-border-strong);
+            cursor: not-allowed;
+        }
+    }
+}
+
+.jl-datepicker-foot {
+    display: flex;
+    justify-content: space-between;
+    gap: .5rem;
+    margin-top: .6rem;
+    padding-top: .6rem;
+    border-top: 1px solid var(--jl-border);
+}
+
+// Password strength meter (React island on the sign-up page).
+.jl-strength {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin-top: .45rem;
+
+    span {
+        height: 4px;
+        border-radius: 4px;
+        background: var(--jl-surface-3);
+        transition: background-color .25s ease;
+    }
+}
+
+.jl-strength-label {
+    margin-top: .25rem;
+    color: var(--jl-muted);
+    font-size: .74rem;
+}

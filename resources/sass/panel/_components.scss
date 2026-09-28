@@ -1,0 +1,784 @@
+// Cards, stat tiles, badges, avatars, tabs, empty states, skeletons, tooltips ...
+.card {
+    --bs-card-bg: var(--jl-surface);
+    --bs-card-border-color: var(--jl-border);
+    --bs-card-cap-bg: transparent;
+    box-shadow: var(--jl-shadow-xs);
+}
+
+.jl-card {
+    background: var(--jl-surface);
+    border: 1px solid var(--jl-border);
+    border-radius: 1rem;
+    box-shadow: var(--jl-shadow-xs);
+}
+
+.jl-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: 1rem 1.25rem .5rem;
+
+    h2,
+    h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    p {
+        margin: .1rem 0 0;
+        color: var(--jl-muted);
+        font-size: .8rem;
+    }
+}
+
+.jl-card-body {
+    padding: .75rem 1.25rem 1.25rem;
+}
+
+.jl-card-hover {
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+
+    &:hover {
+        transform: translateY(-2px);
+        border-color: var(--jl-border-strong);
+        box-shadow: var(--jl-shadow);
+    }
+}
+
+// Stat tile: label, value (count-up), delta, optional sparkline.
+.jl-stat {
+    position: relative;
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    height: 100%;
+    padding: 1.1rem 1.2rem;
+    overflow: hidden;
+    color: inherit;
+    text-decoration: none;
+
+    &:hover {
+        color: inherit;
+        text-decoration: none;
+    }
+}
+
+.jl-stat-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.jl-stat-label {
+    min-width: 0;
+    color: var(--jl-text-2);
+    font-size: .85rem;
+    font-weight: 500;
+}
+
+.jl-stat-icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: .8rem;
+    background: var(--jl-primary-soft);
+    color: var(--jl-primary-text);
+    font-size: 1.2rem;
+    flex-shrink: 0;
+
+    &.is-accent {
+        background: var(--jl-accent-soft);
+        color: var(--jl-accent-text);
+    }
+
+    &.is-success {
+        background: var(--bs-success-bg-subtle);
+        color: var(--bs-success-text-emphasis);
+    }
+
+    &.is-danger {
+        background: var(--bs-danger-bg-subtle);
+        color: var(--bs-danger-text-emphasis);
+    }
+
+    &.is-info {
+        background: var(--bs-info-bg-subtle);
+        color: var(--bs-info-text-emphasis);
+    }
+}
+
+.jl-stat-value {
+    overflow: hidden;
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--jl-text);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.jl-stat-unit {
+    margin-inline-start: .1rem;
+    color: var(--jl-muted);
+    font-size: .8rem;
+    font-weight: 500;
+}
+
+// Narrow tiles (six in a row on mid-size screens): smaller figure, unit on its own line.
+@container (max-width: 220px) {
+    .jl-stat-value {
+        font-size: 1.3rem;
+    }
+
+    .jl-stat-unit {
+        display: block;
+        margin-inline-start: 0;
+    }
+}
+
+.jl-stat-foot {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    color: var(--jl-muted);
+    font-size: .8rem;
+}
+
+.jl-hero-number {
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+// Soft status badge with a dot.
+.jl-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .22rem .65rem;
+    border-radius: 50rem;
+    font-size: .76rem;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+    background: var(--bs-secondary-bg-subtle);
+    color: var(--bs-secondary-text-emphasis);
+
+    &::before {
+        content: '';
+        width: .42rem;
+        height: .42rem;
+        border-radius: 50%;
+        background: currentColor;
+        opacity: .85;
+    }
+
+    &.no-dot::before {
+        display: none;
+    }
+
+    @each $name in (primary, success, warning, danger, info, secondary) {
+        &.is-#{$name} {
+            background: var(--bs-#{$name}-bg-subtle);
+            color: var(--bs-#{$name}-text-emphasis);
+        }
+    }
+
+    &.is-accent {
+        background: var(--jl-accent-soft);
+        color: var(--jl-accent-text);
+    }
+}
+
+.jl-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    padding: .15rem .6rem;
+    border: 1px solid var(--jl-border);
+    border-radius: 50rem;
+    background: var(--jl-surface-2);
+    color: var(--jl-text-2);
+    font-size: .76rem;
+    white-space: nowrap;
+}
+
+// Avatar with initials (color derived from the name).
+.jl-avatar {
+    --jl-avatar-size: 36px;
+    display: inline-grid;
+    place-items: center;
+    width: var(--jl-avatar-size);
+    height: var(--jl-avatar-size);
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    color: #fff;
+    font-size: calc(var(--jl-avatar-size) * .38);
+    font-weight: 700;
+    line-height: 1;
+    user-select: none;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    &.is-sm {
+        --jl-avatar-size: 28px;
+    }
+
+    &.is-lg {
+        --jl-avatar-size: 52px;
+    }
+}
+
+.jl-person {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    min-width: 0;
+
+    .jl-person-name {
+        font-weight: 600;
+        color: var(--jl-text);
+        line-height: 1.35;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .jl-person-meta {
+        color: var(--jl-muted);
+        font-size: .78rem;
+        line-height: 1.35;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+kbd,
+.jl-kbd {
+    display: inline-flex;
+    align-items: center;
+    gap: .15rem;
+    min-width: 1.4rem;
+    padding: .05rem .35rem;
+    border: 1px solid var(--jl-kbd-border);
+    border-bottom-width: 2px;
+    border-radius: .4rem;
+    background: var(--jl-kbd-bg);
+    color: var(--jl-text-2);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .7rem;
+    font-weight: 600;
+    line-height: 1.5;
+    direction: ltr;
+    box-shadow: none;
+}
+
+// Segmented tabs with an animated underline.
+.jl-tabs {
+    display: flex;
+    gap: .25rem;
+    padding: .3rem;
+    border: 1px solid var(--jl-border);
+    border-radius: .85rem;
+    background: var(--jl-surface-2);
+    overflow-x: auto;
+    width: fit-content;
+    max-width: 100%;
+}
+
+.jl-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .38rem .85rem;
+    border: 0;
+    border-radius: .6rem;
+    background: transparent;
+    color: var(--jl-text-2);
+    font-size: .85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+
+    &:hover {
+        color: var(--jl-text);
+        text-decoration: none;
+    }
+
+    &.active {
+        background: var(--jl-surface);
+        color: var(--jl-primary-text);
+        box-shadow: var(--jl-shadow-xs), 0 0 0 1px var(--jl-border);
+    }
+
+    .jl-tab-count {
+        padding: 0 .45rem;
+        border-radius: 50rem;
+        background: var(--jl-surface-3);
+        color: var(--jl-text-2);
+        font-size: .72rem;
+    }
+
+    &.active .jl-tab-count {
+        background: var(--jl-primary-soft);
+        color: var(--jl-primary-text);
+    }
+}
+
+// Empty state
+.jl-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .5rem;
+    padding: 2.5rem 1rem;
+    text-align: center;
+
+    svg {
+        width: 132px;
+        height: auto;
+        margin-bottom: .5rem;
+    }
+
+    h3 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 700;
+    }
+
+    p {
+        max-width: 420px;
+        margin: 0;
+        color: var(--jl-text-2);
+        font-size: .88rem;
+    }
+}
+
+// Skeleton loader (deferred props).
+.jl-skeleton {
+    display: block;
+    border-radius: .5rem;
+    background: linear-gradient(90deg, var(--jl-skeleton) 25%, var(--jl-skeleton-shine) 37%, var(--jl-skeleton) 63%);
+    background-size: 400% 100%;
+    animation: jl-shimmer 1.4s ease infinite;
+}
+
+// CSS tooltip: <span data-tip="...">
+[data-tip] {
+    position: relative;
+}
+
+[data-tip]::after {
+    content: attr(data-tip);
+    position: absolute;
+    z-index: 1080;
+    inset-block-end: calc(100% + 8px);
+    inset-inline-start: 50%;
+    padding: .3rem .6rem;
+    border-radius: .45rem;
+    background: #0d1822;
+    color: #f3f6fa;
+    font-size: .75rem;
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(50%, 4px);
+    transition: opacity .15s ease, transform .15s ease;
+}
+
+[dir='ltr'] [data-tip]::after {
+    transform: translate(-50%, 4px);
+}
+
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
+    opacity: 1;
+    transform: translate(50%, 0);
+}
+
+[dir='ltr'] [data-tip]:hover::after,
+[dir='ltr'] [data-tip]:focus-visible::after {
+    transform: translate(-50%, 0);
+}
+
+[data-tip-pos='start']::after {
+    inset-block-end: auto;
+    inset-block-start: 50%;
+    inset-inline-start: calc(100% + 10px);
+    transform: translate(0, -50%);
+}
+
+[data-tip-pos='start']:hover::after {
+    transform: translate(0, -50%);
+}
+
+[data-bs-theme='dark'] [data-tip]::after {
+    background: #e2e9f2;
+    color: #0a0f1c;
+}
+
+// Buttons: soft variants and small refinements.
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .45rem;
+    transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .12s ease;
+
+    &:active {
+        transform: translateY(1px);
+    }
+
+    .bi {
+        font-size: 1.05em;
+    }
+}
+
+.btn-primary {
+    --bs-btn-hover-bg: var(--jl-primary-hover);
+    --bs-btn-hover-border-color: var(--jl-primary-hover);
+    box-shadow: 0 1px 2px rgba(0, 107, 130, .18), inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+
+.btn-soft {
+    --bs-btn-bg: var(--jl-primary-soft);
+    --bs-btn-color: var(--jl-primary-text);
+    --bs-btn-border-color: transparent;
+    --bs-btn-hover-bg: rgba(var(--jl-primary-rgb), .16);
+    --bs-btn-hover-color: var(--jl-primary-text);
+    --bs-btn-hover-border-color: transparent;
+    --bs-btn-active-bg: rgba(var(--jl-primary-rgb), .2);
+    --bs-btn-active-color: var(--jl-primary-text);
+}
+
+.btn-soft-danger {
+    --bs-btn-bg: var(--bs-danger-bg-subtle);
+    --bs-btn-color: var(--bs-danger-text-emphasis);
+    --bs-btn-border-color: transparent;
+    --bs-btn-hover-bg: var(--bs-danger);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-border-color: transparent;
+}
+
+.btn-soft-accent {
+    --bs-btn-bg: var(--jl-accent-soft);
+    --bs-btn-color: var(--jl-accent-text);
+    --bs-btn-border-color: transparent;
+    --bs-btn-hover-bg: var(--jl-accent);
+    --bs-btn-hover-color: #1b1203;
+    --bs-btn-hover-border-color: transparent;
+}
+
+.btn-ghost {
+    --bs-btn-bg: transparent;
+    --bs-btn-color: var(--jl-text-2);
+    --bs-btn-border-color: var(--jl-border);
+    --bs-btn-hover-bg: var(--jl-surface-3);
+    --bs-btn-hover-color: var(--jl-text);
+    --bs-btn-hover-border-color: var(--jl-border-strong);
+}
+
+.btn .jl-kbd,
+.btn kbd {
+    border-color: rgba(255, 255, 255, .3);
+    background: rgba(255, 255, 255, .14);
+    color: inherit;
+}
+
+.btn-ghost kbd,
+.btn-soft kbd,
+.btn-light kbd {
+    border-color: var(--jl-kbd-border);
+    background: var(--jl-kbd-bg);
+    color: var(--jl-text-2);
+}
+
+// Dropdowns
+.dropdown-menu {
+    --bs-dropdown-bg: var(--jl-surface);
+    --bs-dropdown-border-color: var(--jl-border);
+    --bs-dropdown-link-color: var(--jl-text);
+    --bs-dropdown-link-hover-bg: var(--jl-surface-3);
+    --bs-dropdown-link-hover-color: var(--jl-text);
+    --bs-dropdown-item-padding-y: .45rem;
+    --bs-dropdown-item-border-radius: .5rem;
+    padding: .35rem;
+    box-shadow: var(--jl-shadow-lg);
+    animation: jl-pop .16s ease both;
+
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        border-radius: .5rem;
+
+        .bi {
+            color: var(--jl-muted);
+            font-size: 1rem;
+        }
+
+        &.text-danger .bi {
+            color: inherit;
+        }
+    }
+}
+
+.jl-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.jl-dropdown-menu {
+    position: absolute;
+    z-index: 1060;
+    inset-block-start: calc(100% + 6px);
+    inset-inline-end: 0;
+    min-width: 200px;
+    display: block;
+}
+
+.jl-dropdown-menu.is-start {
+    inset-inline-end: auto;
+    inset-inline-start: 0;
+}
+
+.jl-dropdown-menu.is-up {
+    inset-block-start: auto;
+    inset-block-end: calc(100% + 6px);
+}
+
+// Progress / meter: the track is a lighter step of the same hue.
+.jl-meter {
+    height: .5rem;
+    border-radius: 50rem;
+    background: var(--jl-primary-soft);
+    overflow: hidden;
+
+    > span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--jl-primary);
+        transition: width .6s cubic-bezier(.2, .7, .2, 1);
+    }
+
+    &.is-accent {
+        background: var(--jl-accent-soft);
+
+        > span {
+            background: var(--jl-accent);
+        }
+    }
+}
+
+// Onboarding checklist
+.jl-checklist {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    li {
+        display: flex;
+        align-items: center;
+        gap: .65rem;
+        padding: .5rem 0;
+        border-bottom: 1px dashed var(--jl-border);
+        font-size: .88rem;
+
+        &:last-child {
+            border-bottom: 0;
+        }
+    }
+
+    .bi-check-circle-fill {
+        color: var(--bs-success);
+    }
+
+    .bi-circle {
+        color: var(--jl-border-strong);
+    }
+
+    .is-done {
+        color: var(--jl-muted);
+        text-decoration: line-through;
+    }
+}
+
+// Simple vertical list rows (recent items, activity).
+.jl-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    > li {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        padding: .7rem 0;
+        border-bottom: 1px solid var(--jl-border);
+
+        &:last-child {
+            border-bottom: 0;
+        }
+    }
+}
+
+.jl-timeline {
+    position: relative;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    > li {
+        position: relative;
+        padding-inline-start: 1.6rem;
+        padding-bottom: 1rem;
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset-inline-start: .38rem;
+            inset-block: .9rem 0;
+            width: 2px;
+            background: var(--jl-border);
+        }
+
+        &:last-child::before {
+            display: none;
+        }
+    }
+
+    .jl-timeline-dot {
+        position: absolute;
+        inset-inline-start: 0;
+        inset-block-start: .45rem;
+        width: .85rem;
+        height: .85rem;
+        border: 2px solid var(--jl-surface);
+        border-radius: 50%;
+        background: var(--jl-border-strong);
+        box-shadow: 0 0 0 2px var(--jl-border);
+
+        &.is-primary {
+            background: var(--jl-primary);
+        }
+
+        &.is-success {
+            background: var(--bs-success);
+        }
+
+        &.is-warning {
+            background: var(--bs-warning);
+        }
+
+        &.is-accent {
+            background: var(--jl-accent);
+        }
+    }
+}
+
+// Health check row for the developer dashboard.
+.jl-health {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .65rem .9rem;
+    border: 1px solid var(--jl-border);
+    border-radius: .8rem;
+    background: var(--jl-surface-2);
+
+    .bi {
+        font-size: 1.15rem;
+    }
+
+    &.is-ok .bi {
+        color: var(--bs-success);
+    }
+
+    &.is-fail {
+        border-color: var(--bs-danger-border-subtle);
+        background: var(--bs-danger-bg-subtle);
+
+        .bi {
+            color: var(--bs-danger);
+        }
+    }
+}
+
+.jl-code {
+    padding: .75rem 1rem;
+    border-radius: .7rem;
+    background: var(--jl-surface-2);
+    border: 1px solid var(--jl-border);
+    color: var(--jl-text-2);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .76rem;
+    direction: ltr;
+    text-align: left;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 320px;
+    overflow: auto;
+}
+
+.jl-logo-mark {
+    flex-shrink: 0;
+    filter: drop-shadow(0 4px 10px rgba(var(--jl-accent-rgb), .35));
+}
+
+.jl-wordmark {
+    font-weight: 800;
+    font-size: 1.1rem;
+    line-height: 1.15;
+    color: var(--jl-text);
+
+    b {
+        color: var(--jl-accent);
+        font-weight: 800;
+    }
+}
+
+.jl-divider-text {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    color: var(--jl-muted);
+    font-size: .8rem;
+
+    &::before,
+    &::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--jl-border);
+    }
+}
+
+.jl-rating {
+    color: var(--jl-accent);
+    letter-spacing: 1px;
+}
+
+.jl-money {
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.alert {
+    border-radius: .8rem;
+}

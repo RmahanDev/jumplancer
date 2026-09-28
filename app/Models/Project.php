@@ -41,6 +41,7 @@ class Project extends Model
             'is_beginner_friendly' => 'boolean',
             'deadline' => 'date',
             'published_at' => 'datetime',
+            'submitted_at' => 'datetime',
             'posting_type' => PostingType::class,
         ];
     }

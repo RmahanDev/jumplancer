@@ -1,0 +1,21 @@
+// Dark mode (data-bs-theme="dark"): the brand's navy page with slightly lifted surfaces.
+$body-bg-dark: $jl-dark;
+$body-color-dark: #dbe3ee;
+$body-emphasis-color-dark: #f3f6fa;
+$body-secondary-color-dark: #a4b2c4;
+$body-tertiary-color-dark: #7d8ca3;
+$body-secondary-bg-dark: #111a2c;
+$body-tertiary-bg-dark: #0e1626;
+$border-color-dark: #1f2b42;
+$border-color-translucent-dark: rgba(255, 255, 255, .09);
+$headings-color-dark: #f3f6fa;
+
+// Teal text/links need a lighter step to stay readable on navy; buttons keep the brand teal.
+$link-color-dark: #5ac4d9;
+$link-hover-color-dark: #8ad6e5;
+$primary-text-emphasis-dark: #6fcbdd;
+$primary-bg-subtle-dark: rgba($jl-primary, .24);
+$primary-border-subtle-dark: rgba($jl-primary, .55);
+
+$form-valid-color-dark: #4ade80;
+$form-invalid-color-dark: #f87171;

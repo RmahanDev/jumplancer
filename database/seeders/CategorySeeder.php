@@ -9,61 +9,69 @@ use Illuminate\Database\Seeder;
 class CategorySeeder extends Seeder
 {
     /**
-     * Top-level fields, their sub-categories and the skills of each sub-category.
+     * Top-level fields, their sub-categories and the skills of each sub-category (Persian names, Latin slugs).
      *
      * @var array<int, array{name: string, slug: string, children: array<int, array{name: string, slug: string, skills: array<string, string>}>}>
      */
     private const TREE = [
         [
-            'name' => 'Programming & Tech',
+            'name' => 'برنامه‌نویسی و فناوری',
             'slug' => 'programming-tech',
             'children' => [
-                ['name' => 'Web Development', 'slug' => 'web-development', 'skills' => [
+                ['name' => 'توسعه‌ی وب', 'slug' => 'web-development', 'skills' => [
                     'php' => 'PHP',
                     'laravel' => 'Laravel',
                     'wordpress' => 'WordPress',
                     'javascript' => 'JavaScript',
                     'react' => 'React',
                     'html-css' => 'HTML & CSS',
+                    'mysql' => 'MySQL',
+                    'bootstrap' => 'Bootstrap',
                 ]],
-                ['name' => 'Mobile Apps', 'slug' => 'mobile-apps', 'skills' => [
+                ['name' => 'اپلیکیشن موبایل', 'slug' => 'mobile-apps', 'skills' => [
                     'flutter' => 'Flutter',
+                    'android' => 'Android',
                 ]],
             ],
         ],
         [
-            'name' => 'Design & Creative',
+            'name' => 'طراحی و خلاقیت',
             'slug' => 'design-creative',
             'children' => [
-                ['name' => 'UI/UX Design', 'slug' => 'ui-ux', 'skills' => [
+                ['name' => 'طراحی رابط و تجربه‌ی کاربری', 'slug' => 'ui-ux', 'skills' => [
                     'figma' => 'Figma',
+                    'user-research' => 'تحقیق کاربر',
                 ]],
-                ['name' => 'Graphic Design', 'slug' => 'graphic-design', 'skills' => [
+                ['name' => 'طراحی گرافیک', 'slug' => 'graphic-design', 'skills' => [
                     'photoshop' => 'Photoshop',
+                    'illustrator' => 'Illustrator',
+                    'logo-design' => 'طراحی لوگو',
                 ]],
             ],
         ],
         [
-            'name' => 'Writing & Translation',
+            'name' => 'نویسندگی و ترجمه',
             'slug' => 'writing-translation',
             'children' => [
-                ['name' => 'Content Writing', 'slug' => 'content-writing', 'skills' => [
-                    'copywriting' => 'Copywriting',
+                ['name' => 'تولید محتوا', 'slug' => 'content-writing', 'skills' => [
+                    'copywriting' => 'کپی‌رایتینگ',
+                    'seo-writing' => 'مقاله‌نویسی سئو',
                 ]],
-                ['name' => 'Translation', 'slug' => 'translation', 'skills' => [
-                    'en-fa-translation' => 'English-Persian Translation',
+                ['name' => 'ترجمه', 'slug' => 'translation', 'skills' => [
+                    'en-fa-translation' => 'ترجمه‌ی انگلیسی به فارسی',
                 ]],
             ],
         ],
         [
-            'name' => 'Digital Marketing',
+            'name' => 'دیجیتال مارکتینگ',
             'slug' => 'digital-marketing',
             'children' => [
-                ['name' => 'SEO', 'slug' => 'seo', 'skills' => [
-                    'technical-seo' => 'Technical SEO',
+                ['name' => 'سئو', 'slug' => 'seo', 'skills' => [
+                    'technical-seo' => 'سئوی تکنیکال',
+                    'google-analytics' => 'Google Analytics',
                 ]],
-                ['name' => 'Social Media', 'slug' => 'social-media', 'skills' => [
-                    'instagram-marketing' => 'Instagram Marketing',
+                ['name' => 'شبکه‌های اجتماعی', 'slug' => 'social-media', 'skills' => [
+                    'instagram-marketing' => 'بازاریابی اینستاگرام',
                 ]],
             ],
         ],

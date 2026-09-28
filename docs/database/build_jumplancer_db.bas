@@ -2,7 +2,7 @@ Option Compare Database
 Option Explicit
 
 ' ====================================================================
-'  Jump Lancer - Access database schema builder (v2)
+'  Jump Lancer - Access database schema builder (v4)
 '  Run BuildJumpLancer (cursor inside the Sub, press F5) to (re)create
 '  the .accdb at OUTPUT_PATH. Re-running overwrites that file, so edit
 '  this module for each revision and run it again.
@@ -12,9 +12,40 @@ Option Explicit
 '  a support-ticket system for mentorship requests (technical = ticket
 '  only, motivational = ticket or phone), removed the hard readiness
 '  gate on projects (it is now advisory only, shown to the freelancer).
+'
+'  v3 changes: anti-disintermediation portfolio system. Freelancers no
+'  longer attach raw PDF/Word portfolio files or an external link;
+'  instead they fill an optional, structured case-study form
+'  (portfolio_items + portfolio_item_skill) that employers browse
+'  in-platform. Freelancers can still upload an image/PDF as proof,
+'  but it stays hidden (portfolio_media.status=pending_review) until
+'  a staff reviewer confirms it has no phone/email/social contact info
+'  and approves it. Removed freelancer_profiles.portfolio_url (an
+'  unmoderated external link was the same loophole).
+'
+'  v4 changes:
+'   1) Beginner freelancers get their first 2 mentorships free
+'      (freelancer_profiles.free_mentorships_used, is_free_mentorship on
+'      contracts and mentorship_programs, paid ones via transactions).
+'   2) Employers: 1st project free; 2nd project free only if posted
+'      within 30 days of the 1st (employer_profiles.first_free_project_at
+'      / second_free_until, projects.posting_type). Replaces "3 free".
+'   3) Field exams: registering at intermediate or above, or adding a
+'      2nd+ field (e.g. programming + graphic design), needs a passed
+'      field exam. Exam for the first field is free, every extra field
+'      is paid (freelancer_fields, assessments.scope, attempt fees).
+'   4) Admin-editable budget floor/ceiling per parent AND child category
+'      (category_budget_ranges) so employers cannot underprice work.
+'   5) Freelancers can work in several fields once each field's exam is
+'      passed (freelancer_fields.status = active).
+'   6) Sharing phone / email / any link in chat is forbidden; the message
+'      is blocked, logged in violations and the account is suspended
+'      (messages.status, users.suspended_at, violations).
+'   + platform_settings: admin-editable numbers (30 days, 2 mentorships,
+'     exam fee ...) so the dashboard can change them without code.
 ' ====================================================================
 Private Const OUTPUT_DIR As String = "C:\Users\mahan\Documents\GitHub\jumplancer\docs\database\"
-Private Const OUTPUT_FILE As String = "jumplancer_db_v2.accdb"
+Private Const OUTPUT_FILE As String = "jumplancer_db_v4.accdb"
 
 Private db As DAO.Database
 Private td As DAO.TableDef
@@ -49,6 +80,8 @@ Public Sub BuildJumpLancer()
     F "email_verified_at", dbDate
     F "phone_verified_at", dbDate
     F "last_login_at", dbDate
+    F "suspended_at", dbDate, , , , , "Set when status becomes suspended (e.g. contact info shared in chat)"
+    F "suspension_reason", dbText, 255, , , , "Shown to the user and to admins"
     Call TS: SoftDel
     Idx "ux_users_email", "email", True
     Idx "ux_users_phone", "phone", True
@@ -67,9 +100,11 @@ Public Sub BuildJumpLancer()
     F "level", dbText, 20, True, Q("beginner"), L("beginner,junior,intermediate,senior")
     F "readiness_score", dbInteger, , True, "0", "Between 0 And 100", "0-100. Does not block applying; a skill mismatch just warns the freelancer and lowers their rank to employers"
     F "hourly_rate", dbCurrency, , , , ">=0", "Toman"
-    F "portfolio_url", dbText, 255
+    ' portfolio_url removed in v3 - an unmoderated external link was the same off-platform-contact
+    ' loophole as raw file uploads. Replaced by portfolio_items / portfolio_media below.
     F "availability", dbText, 20, True, Q("available"), L("available,busy,unavailable")
     F "onboarding_completed", dbBoolean, , , "No", , "Finished the beginner onboarding path"
+    F "free_mentorships_used", dbByte, , True, "0", ">=0", "Beginner freelancers get platform_settings.beginner_free_mentorships (2) free; count used ones here"
     TS
     Idx "ux_freelancer_profiles_user", "user_id", True
     Save "Freelancer-specific data for users with the freelancer role."
@@ -81,7 +116,9 @@ Public Sub BuildJumpLancer()
     F "industry", dbText, 100
     F "website", dbText, 255
     F "open_to_beginners", dbBoolean, , , "Yes", , "Agreed to hire beginners with mentor support"
-    F "free_projects_used", dbByte, , True, "0", "Between 0 And 3", "Counts toward the 3 free project posts before a plan is required"
+    F "free_projects_used", dbByte, , True, "0", "Between 0 And 2", "0-2. 1st project is always free; 2nd is free only before second_free_until"
+    F "first_free_project_at", dbDate, , , , , "When the 1st free project was posted - starts the 30-day window"
+    F "second_free_until", dbDate, , , , , "first_free_project_at + second_free_project_window_days (30). After this, a plan is required"
     TS
     Idx "ux_employer_profiles_user", "user_id", True
     Save "Employer-specific data for users with the employer role."
@@ -94,7 +131,7 @@ Public Sub BuildJumpLancer()
     F "description", dbMemo
     F "is_active", dbBoolean, , , "Yes"
     TS
-    Save "Paid plans employers buy once their 3 free projects are used."
+    Save "Paid plans employers buy once their free project(s) are used or the 30-day window has passed."
 
     T "employer_subscriptions": PK
     F "employer_id", dbLong, , True
@@ -133,6 +170,17 @@ Public Sub BuildJumpLancer()
     Idx "ux_skills_slug", "slug", True
     Save "Skills that freelancers have and projects require."
 
+    T "category_budget_ranges": PK
+    F "category_id", dbLong, , True, , , "Parent OR child category. A child row overrides its parent; no child row = parent's range applies"
+    F "budget_type", dbText, 10, True, Q("fixed"), L("fixed,hourly")
+    F "min_amount", dbCurrency, , True, , ">=0", "Lowest budget an employer may set (Toman)"
+    F "max_amount", dbCurrency, , , , ">=0", "Highest budget (Toman). Empty = no ceiling"
+    F "is_active", dbBoolean, , , "Yes"
+    F "updated_by", dbLong, , , , , "Admin who last changed the range"
+    TS
+    Idx "ux_category_budget_ranges", "category_id,budget_type", True
+    Save "Admin-editable price range per category so employers cannot post e.g. a website for 500,000 Toman. Edited from the admin dashboard as prices change."
+
     T "skill_user"
     F "user_id", dbLong, , True
     F "skill_id", dbLong, , True
@@ -140,6 +188,50 @@ Public Sub BuildJumpLancer()
     F "is_verified", dbBoolean, , , "No", , "Confirmed by passing an assessment"
     Idx "PrimaryKey", "user_id,skill_id", True, True
     Save "Pivot: skills of each freelancer."
+
+    T "freelancer_fields": PK
+    F "freelancer_id", dbLong, , True
+    F "category_id", dbLong, , True, , , "Top-level field (a category with no parent), e.g. Programming & Tech"
+    F "claimed_level", dbText, 20, True, Q("beginner"), L("beginner,junior,intermediate,senior"), "Level the freelancer registers with in this field"
+    F "is_primary", dbBoolean, , , "No", , "The first field the freelancer registered with"
+    F "exam_required", dbBoolean, , , "No", , "Yes when claimed_level >= exam_required_from_level OR this is not the primary field"
+    F "exam_fee_required", dbBoolean, , , "No", , "No for the primary field (first exam is free); Yes for every additional field"
+    F "status", dbText, 20, True, Q("pending_exam"), L("pending_exam,active,rejected"), "Only active fields let the freelancer send proposals on projects in that field"
+    F "verified_at", dbDate, , , , , "When the field became active (exam passed, or no exam needed)"
+    TS
+    Idx "ux_freelancer_fields", "freelancer_id,category_id", True
+    Save "Fields (top-level categories) a freelancer works in. A freelancer can hold several; each extra field needs a passed, paid exam."
+
+    ' ======================= PORTFOLIO (anti-disintermediation) =======================
+    T "portfolio_items": PK
+    F "freelancer_id", dbLong, , True, , , "Owner of this case study"
+    F "category_id", dbLong, , , , , "Related category (optional)"
+    F "title", dbText, 200, , , , "Project title (optional - the whole form is optional)"
+    F "role", dbText, 150, , , , "Freelancer's role in the project (optional)"
+    F "description", dbMemo, , , , , "What was built and how (optional)"
+    F "outcome", dbMemo, , , , , "Result delivered to the client (optional)"
+    F "duration_days", dbInteger, , , , ">0", "How long it took (optional)"
+    F "is_visible", dbBoolean, , , "Yes", , "Shown to employers browsing this freelancer"
+    TS
+    Save "Structured portfolio case study a freelancer fills in instead of uploading a raw file. Every field is optional - employers browse this to judge fit instead of exchanging files off-platform."
+
+    T "portfolio_item_skill"
+    F "portfolio_item_id", dbLong, , True
+    F "skill_id", dbLong, , True
+    Idx "PrimaryKey", "portfolio_item_id,skill_id", True, True
+    Save "Pivot: skills demonstrated by each portfolio case study."
+
+    T "portfolio_media": PK
+    F "portfolio_item_id", dbLong, , True, , , "Case study this file illustrates"
+    F "file_path", dbText, 255, True
+    F "file_type", dbText, 10, True, Q("image"), L("image,pdf")
+    F "original_filename", dbText, 255
+    F "status", dbText, 20, True, Q("pending_review"), L("pending_review,approved,rejected"), "Hidden from employers until a reviewer approves it"
+    F "reviewed_by", dbLong, , , , , "Staff member who checked the file for contact info"
+    F "reviewed_at", dbDate
+    F "rejection_reason", dbText, 255, , , , "Shown to the freelancer when rejected, e.g. contains a phone number"
+    F "uploaded_at", dbDate, , True, "Now()"
+    Save "Image/PDF proof a freelancer uploads for a case study. Stays hidden until a staff reviewer confirms it contains no phone number, email or social-media contact info, then approves it."
 
     ' ======================= MARKETPLACE =======================
     T "projects": PK
@@ -149,12 +241,14 @@ Public Sub BuildJumpLancer()
     F "title", dbText, 200, True
     F "description", dbMemo, , True
     F "budget_type", dbText, 10, True, Q("fixed"), L("fixed,hourly")
-    F "budget_min", dbCurrency, , , , ">=0", "Toman"
-    F "budget_max", dbCurrency, , , , ">=0", "Toman"
+    F "budget_min", dbCurrency, , , , ">=0", "Toman. Must be >= category_budget_ranges.min_amount for this category"
+    F "budget_max", dbCurrency, , , , ">=0", "Toman. Must be <= category_budget_ranges.max_amount when set"
     F "status", dbText, 20, True, Q("draft"), L("draft,pending_review,open,in_progress,completed,cancelled"), "pending_review = team checks it is beginner-suitable"
     F "is_beginner_friendly", dbBoolean, , , "Yes"
     F "deadline", dbDate
     F "published_at", dbDate
+    F "posting_type", dbText, 20, True, Q("free_first"), L("free_first,free_second,subscription"), "How this post was paid for"
+    F "subscription_id", dbLong, , , , , "Set when posting_type=subscription"
     Call TS: SoftDel
     Idx "ix_projects_status", "status"
     Save "Jobs posted by employers."
@@ -186,7 +280,8 @@ Public Sub BuildJumpLancer()
     F "mentor_id", dbLong, , , , , "Mentor supporting delivery (optional)"
     F "amount", dbCurrency, , True, , ">=0", "Total agreed amount (Toman)"
     F "mentorship_included", dbBoolean, , , "No", , "Mentor is supporting this contract's delivery"
-    F "fee_percent", dbInteger, , True, "20", "Between 0 And 100", "Platform cut of freelancer earnings; 20, or 25 when mentorship_included"
+    F "is_free_mentorship", dbBoolean, , , "No", , "Uses one of the beginner's 2 free mentorships - the extra 5% is not charged"
+    F "fee_percent", dbInteger, , True, "20", "Between 0 And 100", "Platform cut of freelancer earnings; 20, or 25 when mentorship_included (20 again when is_free_mentorship)"
     F "status", dbText, 20, True, Q("active"), L("active,completed,cancelled,disputed")
     F "started_at", dbDate
     F "completed_at", dbDate
@@ -218,7 +313,9 @@ Public Sub BuildJumpLancer()
     F "contract_id", dbLong
     F "milestone_id", dbLong
     F "subscription_id", dbLong, , , , , "Set when type=plan_purchase"
-    F "type", dbText, 20, True, , L("deposit,escrow_hold,escrow_release,payout,refund,fee,plan_purchase,mentor_payout")
+    F "assessment_attempt_id", dbLong, , , , , "Set when type=exam_fee"
+    F "mentorship_program_id", dbLong, , , , , "Set when type=mentorship_fee"
+    F "type", dbText, 20, True, , L("deposit,escrow_hold,escrow_release,payout,refund,fee,plan_purchase,mentor_payout,exam_fee,mentorship_fee")
     F "amount", dbCurrency, , True, , , "Toman"
     F "gateway", dbText, 30, , , , "zarinpal, idpay, internal ..."
     F "gateway_ref", dbText, 100, , , , "Tracking code returned by the gateway"
@@ -269,6 +366,8 @@ Public Sub BuildJumpLancer()
     F "track", dbText, 20, True, Q("freelancer"), L("freelancer,employer"), "Which side of the market is mentored"
     F "goal", dbMemo
     F "status", dbText, 20, True, Q("active"), L("active,paused,completed,cancelled")
+    F "is_free_mentorship", dbBoolean, , , "No", , "Counted against the beginner freelancer's 2 free mentorships"
+    F "price", dbCurrency, , , , ">=0", "Toman. Empty/0 when free"
     F "started_at", dbDate
     F "ended_at", dbDate
     TS
@@ -287,20 +386,26 @@ Public Sub BuildJumpLancer()
     Save "Individual meetings inside a mentorship program."
 
     T "assessments": PK
-    F "skill_id", dbLong, , True
+    F "scope", dbText, 10, True, Q("skill"), L("skill,field"), "skill = one skill test; field = entry exam for a whole field"
+    F "skill_id", dbLong, , , , , "Set when scope=skill"
+    F "category_id", dbLong, , , , , "Top-level field, set when scope=field"
+    F "target_level", dbText, 20, , , L("beginner,junior,intermediate,senior"), "Level this exam certifies (field exams)"
     F "title", dbText, 200, True
     F "description", dbMemo
     F "pass_score", dbInteger, , True, "70", "Between 0 And 100"
     F "time_limit_minutes", dbInteger
     F "is_active", dbBoolean, , , "Yes"
     F "created_at", dbDate, , True, "Now()"
-    Save "Skill tests used to measure a freelancer's readiness."
+    Save "Skill tests and field entry exams. Field exams unlock a freelancer_fields row."
 
     T "assessment_attempts": PK
     F "assessment_id", dbLong, , True
     F "user_id", dbLong, , True
     F "score", dbInteger, , , , "Between 0 And 100"
     F "passed", dbBoolean, , , "No"
+    F "freelancer_field_id", dbLong, , , , , "The field this exam attempt is for"
+    F "fee_amount", dbCurrency, , True, "0", ">=0", "0 for the first field's exam; extra_field_exam_fee otherwise (Toman)"
+    F "payment_status", dbText, 10, True, Q("free"), L("free,pending,paid"), "Paid exams can only start once paid"
     F "started_at", dbDate, , True, "Now()"
     F "finished_at", dbDate
     Save "Each time a user takes an assessment."
@@ -355,10 +460,42 @@ Public Sub BuildJumpLancer()
     F "sender_id", dbLong, , True
     F "body", dbMemo
     F "attachment_path", dbText, 255
+    F "status", dbText, 10, True, Q("delivered"), L("delivered,blocked"), "blocked = contained a phone number, email or link; never shown to the other side"
+    F "blocked_reason", dbText, 255
     F "created_at", dbDate, , True, "Now()"
-    Save "Chat messages."
+    Save "Chat messages. Phone numbers, emails and ANY link are forbidden between employer and freelancer."
+
+    T "violations": PK
+    F "user_id", dbLong, , True, , , "Who broke the rule"
+    F "violatable_type", dbText, 50, True, , , "Where it happened: message, proposal, portfolio_item, portfolio_media, project (Laravel morph)"
+    F "violatable_id", dbLong, , True, , , "id of that row"
+    F "violation_type", dbText, 20, True, , L("phone,email,link,social_id,other")
+    F "detected_content", dbText, 255, , , , "The matched text (masked) for the reviewer"
+    F "detected_by", dbText, 20, True, Q("auto_filter"), L("auto_filter,staff,user_report")
+    F "action_taken", dbText, 20, True, Q("suspended"), L("message_blocked,warning,suspended")
+    F "reviewed_by", dbLong, , , , , "Staff member who confirmed / reversed it"
+    F "reviewed_at", dbDate
+    F "created_at", dbDate, , True, "Now()"
+    Idx "ix_violations_user", "user_id"
+    Save "Log of off-platform-contact attempts (phone, email, links). Sharing contact info in chat suspends the account."
+
+    ' ======================= SETTINGS =======================
+    T "platform_settings": PK
+    F "setting_key", dbText, 100, True
+    F "setting_value", dbText, 255, , , , "Stored as text; cast by value_type"
+    F "value_type", dbText, 10, True, Q("int"), L("int,money,text,bool")
+    F "description", dbText, 255
+    F "updated_by", dbLong, , , , , "Admin who last changed it"
+    F "updated_at", dbDate
+    Idx "ux_platform_settings_key", "setting_key", True
+    Save "Admin-dashboard editable business rules (free-project window, free mentorships, exam fees ...)."
 
     ' ======================= RELATIONSHIPS =======================
+    ' Access allows max 32 indexes per table and every relationship adds
+    ' one to the parent table. users is parent of ~30 FKs, so the 6
+    ' "audit" FKs (updated_by / reviewed_by / resolved_by /
+    ' mentor_reviewed_by) are NOT drawn here - they stay as columns and
+    ' MUST be real foreign keys in the Laravel/MySQL migrations.
     ' R parent, child, foreign_key, cascadeDelete
     R "users", "role_user", "user_id", True
     R "roles", "role_user", "role_id"
@@ -369,14 +506,25 @@ Public Sub BuildJumpLancer()
     R "categories", "skills", "category_id"
     R "users", "skill_user", "user_id", True
     R "skills", "skill_user", "skill_id", True
+    R "users", "freelancer_fields", "freelancer_id", True
+    R "categories", "freelancer_fields", "category_id"
+    R "categories", "category_budget_ranges", "category_id", True
+    ' R "users", "category_budget_ranges", "updated_by"     <- Laravel FK only
+    R "users", "portfolio_items", "freelancer_id", True
+    R "categories", "portfolio_items", "category_id"
+    R "portfolio_items", "portfolio_item_skill", "portfolio_item_id", True
+    R "skills", "portfolio_item_skill", "skill_id", True
+    R "portfolio_items", "portfolio_media", "portfolio_item_id", True
+    ' R "users", "portfolio_media", "reviewed_by"     <- Laravel FK only
     R "users", "projects", "employer_id"
     R "categories", "projects", "category_id"
     R "users", "projects", "mentor_id"
+    R "employer_subscriptions", "projects", "subscription_id"
     R "projects", "project_skill", "project_id", True
     R "skills", "project_skill", "skill_id", True
     R "projects", "proposals", "project_id", True
     R "users", "proposals", "freelancer_id"
-    R "users", "proposals", "mentor_reviewed_by"
+    ' R "users", "proposals", "mentor_reviewed_by"     <- Laravel FK only
     R "projects", "contracts", "project_id"
     R "proposals", "contracts", "proposal_id"
     R "users", "contracts", "employer_id"
@@ -390,12 +538,14 @@ Public Sub BuildJumpLancer()
     R "contracts", "transactions", "contract_id"
     R "milestones", "transactions", "milestone_id"
     R "employer_subscriptions", "transactions", "subscription_id"
+    R "assessment_attempts", "transactions", "assessment_attempt_id"
+    R "mentorship_programs", "transactions", "mentorship_program_id"
     R "contracts", "reviews", "contract_id"
     R "users", "reviews", "reviewer_id"
     R "users", "reviews", "reviewee_id"
     R "contracts", "disputes", "contract_id"
     R "users", "disputes", "raised_by"
-    R "users", "disputes", "resolved_by"
+    ' R "users", "disputes", "resolved_by"     <- Laravel FK only
     R "users", "tickets", "requester_id"
     R "users", "tickets", "assigned_mentor_id"
     R "tickets", "mentorship_programs", "ticket_id"
@@ -403,6 +553,8 @@ Public Sub BuildJumpLancer()
     R "users", "mentorship_programs", "mentee_id"
     R "mentorship_programs", "mentorship_sessions", "program_id", True
     R "skills", "assessments", "skill_id"
+    R "categories", "assessments", "category_id"
+    R "freelancer_fields", "assessment_attempts", "freelancer_field_id"
     R "assessments", "assessment_attempts", "assessment_id", True
     R "users", "assessment_attempts", "user_id", True
     R "users", "learning_contents", "author_id"
@@ -416,6 +568,9 @@ Public Sub BuildJumpLancer()
     R "users", "conversation_participants", "user_id", True
     R "conversations", "messages", "conversation_id", True
     R "users", "messages", "sender_id"
+    R "users", "violations", "user_id"
+    ' R "users", "violations", "reviewed_by"     <- Laravel FK only
+    ' R "users", "platform_settings", "updated_by"     <- Laravel FK only
 
     ' ======================= SEED DATA =======================
     X "INSERT INTO roles ([name], display_name) VALUES ('admin','Administrator')"
@@ -455,6 +610,14 @@ Public Sub BuildJumpLancer()
     X "INSERT INTO badges (code, [name], description) VALUES ('first_five_star','Five Stars','Received your first 5-star review')"
     X "INSERT INTO badges (code, [name], description) VALUES ('market_ready','Market Ready','Reached a readiness score of 70+')"
     X "INSERT INTO badges (code, [name], description) VALUES ('mentorship_graduate','Graduate','Completed a mentorship program')"
+
+    St "employer_free_projects", "2", "int", "Free posts per employer: the 1st always, the 2nd only inside the window below"
+    St "second_free_project_window_days", "30", "int", "Days after the 1st project during which the 2nd project is free"
+    St "beginner_free_mentorships", "2", "int", "Free mentorships for freelancers at beginner level"
+    St "exam_required_from_level", "intermediate", "text", "Registering a field at this level or higher requires passing the field exam"
+    St "primary_field_exam_fee", "0", "money", "Exam for the first field of a freelancer is free"
+    St "extra_field_exam_fee", "", "money", "Fee (Toman) for the exam of every additional field - SET FROM ADMIN DASHBOARD"
+    St "contact_violation_action", "suspend", "text", "What happens when phone/email/link is shared in chat"
 
     db.Close
     Set db = Nothing
@@ -578,6 +741,12 @@ End Sub
 
 Private Sub Sk(catSlug As String, nm As String, slug As String)
     X "INSERT INTO skills (category_id, [name], slug) SELECT id, '" & nm & "','" & slug & "' FROM categories WHERE slug='" & catSlug & "'"
+End Sub
+
+Private Sub St(k As String, v As String, typ As String, d As String)
+    Dim vv As String
+    If v = "" Then vv = "Null" Else vv = "'" & v & "'"
+    X "INSERT INTO platform_settings (setting_key, setting_value, value_type, description) VALUES ('" & k & "'," & vv & ",'" & typ & "','" & d & "')"
 End Sub
 
 Private Function Q(s As String) As String

@@ -1,0 +1,103 @@
+// Design tokens as CSS variables, redefined per color mode. Components only use these roles.
+:root,
+[data-bs-theme='light'] {
+    --jl-primary: #{$jl-primary};
+    --jl-primary-rgb: #{to-rgb($jl-primary)};
+    --jl-primary-hover: #{shade-color($jl-primary, 16%)};
+    --jl-primary-soft: rgba(0, 107, 130, .08);
+    --jl-primary-text: #{$jl-primary};
+    --jl-accent: #{$jl-accent};
+    --jl-accent-rgb: #{to-rgb($jl-accent)};
+    --jl-accent-soft: #{$jl-accent-bg-subtle};
+    --jl-accent-text: #{$jl-accent-text};
+
+    --jl-page: #fff;
+    --jl-surface: #fff;
+    --jl-surface-2: #f6f9fb;
+    --jl-surface-3: #eef3f6;
+    --jl-input-bg: #fff;
+    --jl-border: #e4ebef;
+    --jl-border-strong: #d3dde3;
+    --jl-text: #17232e;
+    --jl-text-2: #4b5b68;
+    --jl-muted: #7a8894;
+
+    --jl-shadow-xs: 0 1px 2px rgba(15, 30, 45, .05);
+    --jl-shadow: 0 1px 2px rgba(15, 30, 45, .04), 0 6px 18px -6px rgba(15, 30, 45, .1);
+    --jl-shadow-lg: 0 24px 56px -16px rgba(15, 30, 45, .28);
+    --jl-ring: 0 0 0 .2rem rgba(0, 107, 130, .22);
+
+    --jl-sidebar-bg: #fff;
+    --jl-topbar-bg: rgba(255, 255, 255, .86);
+    --jl-nav-text: #3c4c59;
+    --jl-nav-hover: rgba(0, 107, 130, .06);
+    --jl-nav-active: rgba(0, 107, 130, .1);
+    --jl-nav-active-text: #{$jl-primary};
+
+    // Validated chart palette (dataviz six checks, light surface #fff):
+    // teal #00819c + orange #d9730a pass band, chroma, CVD, normal-vision and 3:1 contrast.
+    --jl-chart-1: #00819c;
+    --jl-chart-2: #d9730a;
+    --jl-chart-area: rgba(0, 129, 156, .1);
+    --jl-chart-grid: #e9eef1;
+    --jl-chart-axis: #cfd9df;
+    --jl-chart-label: #6b7a86;
+    --jl-chart-muted: #c5d1d8;
+
+    --jl-skeleton: #eef3f6;
+    --jl-skeleton-shine: #f8fafb;
+    --jl-kbd-bg: #f1f5f8;
+    --jl-kbd-border: #d9e2e8;
+    --jl-scrollbar: #cfd9df;
+    --jl-backdrop: rgba(7, 16, 29, .45);
+
+    color-scheme: light;
+}
+
+[data-bs-theme='dark'] {
+    --jl-primary-soft: rgba(0, 107, 130, .22);
+    --jl-primary-text: #5ac4d9;
+    --jl-accent-soft: rgba(247, 148, 29, .14);
+    --jl-accent-text: #fbb45c;
+
+    --jl-page: #{$jl-dark};
+    --jl-surface: #111a2c;
+    --jl-surface-2: #0e1626;
+    --jl-surface-3: #172238;
+    --jl-input-bg: #0c1424;
+    --jl-border: #1f2b42;
+    --jl-border-strong: #2b3a57;
+    --jl-text: #e2e9f2;
+    --jl-text-2: #a8b6c8;
+    --jl-muted: #7d8ca3;
+
+    --jl-shadow-xs: 0 1px 2px rgba(0, 0, 0, .3);
+    --jl-shadow: 0 1px 2px rgba(0, 0, 0, .25), 0 8px 24px -8px rgba(0, 0, 0, .45);
+    --jl-shadow-lg: 0 24px 64px -16px rgba(0, 0, 0, .7);
+    --jl-ring: 0 0 0 .2rem rgba(90, 196, 217, .28);
+
+    --jl-sidebar-bg: #0c1322;
+    --jl-topbar-bg: rgba(10, 15, 28, .82);
+    --jl-nav-text: #b3c0d1;
+    --jl-nav-hover: rgba(90, 196, 217, .07);
+    --jl-nav-active: rgba(0, 107, 130, .3);
+    --jl-nav-active-text: #8ad6e5;
+
+    // Dark steps of the same hues, validated against the dark card surface #111a2c.
+    --jl-chart-1: #2aa3bd;
+    --jl-chart-2: #d4750f;
+    --jl-chart-area: rgba(42, 163, 189, .12);
+    --jl-chart-grid: #1b2840;
+    --jl-chart-axis: #2b3a55;
+    --jl-chart-label: #8b9ab0;
+    --jl-chart-muted: #33435f;
+
+    --jl-skeleton: #172238;
+    --jl-skeleton-shine: #1f2c45;
+    --jl-kbd-bg: #172238;
+    --jl-kbd-border: #2b3a57;
+    --jl-scrollbar: #2b3a57;
+    --jl-backdrop: rgba(0, 0, 0, .6);
+
+    color-scheme: dark;
+}

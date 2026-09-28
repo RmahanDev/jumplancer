@@ -1,0 +1,111 @@
+// Brand (from the product brief): primary teal, logo/accent orange, dark navy.
+$jl-primary: #006b82;
+$jl-accent: #f7941d;
+$jl-dark: #0a0f1c;
+
+// Accent variants for text and soft backgrounds on white (the raw orange is too light for text).
+$jl-accent-text: #9a5205;
+$jl-accent-bg-subtle: #fff3e3;
+$jl-accent-border-subtle: #fdd3a0;
+
+// Bootstrap overrides (light mode)
+$primary: $jl-primary;
+$secondary: #5b6b79;
+$success: #15803d;
+$info: #0f6fbf;
+$warning: #e0a100;
+$danger: #d0342c;
+$light: #f4f7f9;
+$dark: $jl-dark;
+
+$min-contrast-ratio: 3;
+$color-contrast-dark: $jl-dark;
+
+$body-bg: #fff;
+$body-color: #17232e;
+$body-secondary-color: #5d6c78;
+$body-tertiary-color: #7c8a95;
+$body-secondary-bg: #f4f7f9;
+$body-tertiary-bg: #f9fbfc;
+$body-emphasis-color: #0d1822;
+$border-color: #e4ebef;
+$border-color-translucent: rgba(15, 30, 45, .1);
+$headings-color: #0d1822;
+$headings-font-weight: 700;
+
+$font-family-sans-serif: 'Vazirmatn', system-ui, -apple-system, 'Segoe UI', Tahoma, sans-serif;
+$font-size-base: .9375rem;
+$line-height-base: 1.75;
+$font-weight-semibold: 600;
+$small-font-size: .8125rem;
+
+$border-radius: .625rem;
+$border-radius-sm: .5rem;
+$border-radius-lg: .875rem;
+$border-radius-xl: 1.125rem;
+$border-radius-xxl: 1.5rem;
+
+$link-color: $jl-primary;
+$link-decoration: none;
+$link-hover-decoration: underline;
+
+$box-shadow-sm: 0 1px 2px rgba(15, 30, 45, .05);
+$box-shadow: 0 1px 2px rgba(15, 30, 45, .04), 0 6px 18px -6px rgba(15, 30, 45, .1);
+$box-shadow-lg: 0 20px 48px -12px rgba(15, 30, 45, .24);
+
+$focus-ring-width: .2rem;
+$focus-ring-opacity: .22;
+$focus-ring-color: rgba($jl-primary, $focus-ring-opacity);
+
+$input-btn-padding-y: .5rem;
+$input-btn-padding-x: .95rem;
+$input-border-color: #dbe3e8;
+$input-focus-border-color: #5fa9b9;
+$input-placeholder-color: #9aa7b1;
+$form-label-font-weight: 600;
+$form-label-margin-bottom: .35rem;
+$form-check-input-checked-bg-color: $jl-primary;
+$form-switch-checked-color: #fff;
+
+$btn-font-weight: 600;
+$btn-padding-x: 1.05rem;
+
+$card-border-color: #e4ebef;
+$card-cap-bg: transparent;
+$card-spacer-y: 1.1rem;
+$card-spacer-x: 1.25rem;
+
+$table-cell-padding-y: .8rem;
+$table-cell-padding-x: .9rem;
+$table-th-font-weight: 600;
+$table-hover-bg-factor: .035;
+
+$modal-content-border-radius: 1.125rem;
+$modal-header-border-color: #edf1f4;
+$modal-footer-border-color: #edf1f4;
+$modal-backdrop-bg: #07101d;
+$modal-backdrop-opacity: .45;
+
+$dropdown-border-color: #e4ebef;
+$dropdown-link-active-bg: $jl-primary;
+$dropdown-box-shadow: 0 12px 32px -8px rgba(15, 30, 45, .22);
+$dropdown-font-size: .875rem;
+
+$badge-font-weight: 600;
+$badge-padding-y: .38em;
+$badge-padding-x: .7em;
+$badge-border-radius: 50rem;
+
+$nav-pills-link-active-bg: $jl-primary;
+$pagination-border-color: #e4ebef;
+$pagination-active-bg: $jl-primary;
+$pagination-active-border-color: $jl-primary;
+$progress-bg: #e9eff2;
+$progress-height: .5rem;
+$progress-border-radius: 50rem;
+
+$toast-max-width: 380px;
+$tooltip-font-size: .8125rem;
+
+$enable-negative-margins: true;
+$enable-smooth-scroll: true;

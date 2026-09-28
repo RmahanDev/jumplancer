@@ -1,0 +1,196 @@
+// SVG charts: thin marks, hairline grid, crosshair + tooltip, table-view twin.
+.jl-chart {
+    position: relative;
+    width: 100%;
+    user-select: none;
+
+    svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        overflow: visible;
+    }
+
+    .jl-grid line {
+        stroke: var(--jl-chart-grid);
+        stroke-width: 1;
+        shape-rendering: crispEdges;
+    }
+
+    .jl-axis-line {
+        stroke: var(--jl-chart-axis);
+        stroke-width: 1;
+        shape-rendering: crispEdges;
+    }
+
+    .jl-axis-label {
+        fill: var(--jl-chart-label);
+        font-size: 11px;
+        font-family: inherit;
+    }
+
+    .jl-line {
+        fill: none;
+        stroke: var(--jl-chart-1);
+        stroke-width: 2;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+    }
+
+    .jl-area {
+        fill: var(--jl-chart-area);
+    }
+
+    .jl-bar {
+        fill: var(--jl-chart-1);
+        transition: opacity .15s ease, filter .15s ease;
+
+        &.is-accent {
+            fill: var(--jl-chart-2);
+        }
+
+        &.is-muted {
+            fill: var(--jl-chart-muted);
+        }
+    }
+
+    .jl-bar-hit {
+        fill: transparent;
+        cursor: pointer;
+        outline: none;
+
+        &:hover + .jl-bar,
+        &:focus-visible + .jl-bar {
+            filter: brightness(1.12) saturate(1.05);
+        }
+    }
+
+    .jl-dot {
+        fill: var(--jl-chart-1);
+        stroke: var(--jl-surface);
+        stroke-width: 2;
+    }
+
+    .jl-crosshair {
+        stroke: var(--jl-chart-axis);
+        stroke-width: 1;
+        shape-rendering: crispEdges;
+    }
+
+    .jl-value-label {
+        fill: var(--jl-text-2);
+        font-size: 11px;
+        font-weight: 600;
+        font-family: inherit;
+    }
+}
+
+.jl-chart-tooltip {
+    position: absolute;
+    z-index: 5;
+    min-width: 132px;
+    padding: .5rem .7rem;
+    border: 1px solid var(--jl-border);
+    border-radius: .65rem;
+    background: var(--jl-surface);
+    box-shadow: var(--jl-shadow);
+    font-size: .78rem;
+    pointer-events: none;
+    white-space: nowrap;
+    animation: jl-fade .1s ease both;
+
+    .jl-tt-value {
+        display: block;
+        color: var(--jl-text);
+        font-size: .9rem;
+        font-weight: 800;
+    }
+
+    .jl-tt-label {
+        display: flex;
+        align-items: center;
+        gap: .4rem;
+        color: var(--jl-text-2);
+    }
+
+    .jl-tt-key {
+        width: 12px;
+        height: 2px;
+        border-radius: 2px;
+        background: var(--jl-chart-1);
+    }
+}
+
+// Horizontal bars with the label above the bar and the value at its tip.
+.jl-hbars {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    li {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: .25rem .75rem;
+        font-size: .84rem;
+    }
+
+    .jl-hbar-label {
+        color: var(--jl-text-2);
+    }
+
+    .jl-hbar-value {
+        color: var(--jl-text);
+        font-weight: 700;
+    }
+
+    .jl-hbar-track {
+        grid-column: 1 / -1;
+        height: 10px;
+        border-radius: 0 4px 4px 0;
+        background: transparent;
+    }
+
+    .jl-hbar-fill {
+        display: block;
+        height: 100%;
+        min-width: 3px;
+        border-radius: 4px;
+        background: var(--jl-chart-1);
+        transition: width .7s cubic-bezier(.2, .7, .2, 1);
+    }
+}
+
+.jl-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .9rem;
+    color: var(--jl-text-2);
+    font-size: .78rem;
+
+    span {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+    }
+
+    i {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        background: var(--jl-chart-1);
+
+        &.is-accent {
+            background: var(--jl-chart-2);
+        }
+    }
+}
+
+.jl-chart-table {
+    max-height: 260px;
+    overflow: auto;
+    font-size: .8rem;
+}

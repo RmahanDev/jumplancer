@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -20,21 +19,11 @@ class DatabaseSeeder extends Seeder
             CategorySeeder::class,
             BadgeSeeder::class,
             PlatformSettingSeeder::class,
+            SuperAdminSeeder::class,
         ]);
 
-        if (app()->isLocal() && User::doesntExist()) {
-            $this->seedDemoUsers();
+        if (app()->isLocal()) {
+            $this->call(DemoDataSeeder::class);
         }
-    }
-
-    /**
-     * One account per role for local development. Every password is "password".
-     */
-    private function seedDemoUsers(): void
-    {
-        User::factory()->admin()->create(['name' => 'Admin', 'email' => 'admin@jumplancer.test']);
-        User::factory()->employer()->create(['name' => 'Demo Employer', 'email' => 'employer@jumplancer.test']);
-        User::factory()->freelancer()->create(['name' => 'Demo Freelancer', 'email' => 'freelancer@jumplancer.test']);
-        User::factory()->mentor()->create(['name' => 'Demo Mentor', 'email' => 'mentor@jumplancer.test']);
     }
 }
