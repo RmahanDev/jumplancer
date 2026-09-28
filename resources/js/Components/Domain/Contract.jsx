@@ -46,3 +46,45 @@ export function ContractProgress({ contract }) {
         </div>
     );
 }
+
+/** The good-faith deposit of a contract: how much was held when hiring and how much is still unspent. */
+export function DepositNote({ contract, viewer = 'employer' }) {
+    if (!contract.deposit_amount) {
+        return null;
+    }
+
+    const left = Number(contract.deposit_balance ?? 0);
+
+    return (
+        <div className="jl-callout is-warning d-flex flex-wrap align-items-center gap-2 small">
+            <i className="bi bi-shield-lock" />
+            <span>
+                امانت حسن انجام کار: <strong>{formatMoney(contract.deposit_amount)}</strong>
+                {left > 0 ? ` — ${formatMoney(left)} هنوز خرج مرحله‌ها نشده` : ' — کامل خرج مرحله‌ها شده'}
+            </span>
+            <span className="text-muted">
+                {viewer === 'employer'
+                    ? 'مرحله‌ها اول از این مبلغ تأمین می‌شوند؛ مانده‌ی مصرف‌نشده بعد از پایان قرارداد به کیف پولت برمی‌گردد.'
+                    : 'این مبلغ از طرف کارفرما در امانت است؛ اگر بدون دلیل پرداخت نکند، کارشناس درباره‌اش تصمیم می‌گیرد.'}
+            </span>
+        </div>
+    );
+}
+
+/** Banner shown while an expert is looking at a dispute on the contract. */
+export function OpenDisputeNote({ dispute }) {
+    if (!dispute) {
+        return null;
+    }
+
+    return (
+        <div className="jl-callout is-danger d-flex gap-2 small">
+            <i className="bi bi-shield-exclamation mt-1" />
+            <div>
+                <strong>{dispute.raised_by_viewer ? 'درخواست بررسی کارشناس را ثبت کرده‌ای.' : 'طرف مقابل درخواست بررسی کارشناس داده است.'}</strong> پول امانت این قرارداد تا تصمیم
+                کارشناس جابه‌جا نمی‌شود.
+                <div className="text-muted mt-1">«{dispute.reason}»</div>
+            </div>
+        </div>
+    );
+}

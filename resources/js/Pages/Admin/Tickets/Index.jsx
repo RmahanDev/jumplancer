@@ -81,11 +81,16 @@ export default function Index({ tickets, filters: initialFilters, mentors, optio
             primary: true,
             render: (ticket) => (
                 <div className="min-w-0">
-                    <div className="fw-semibold text-truncate" style={{ maxWidth: 340 }}>
+                    <div className="fw-semibold text-truncate" style={{ maxWidth: 280 }}>
                         {ticket.subject}
                     </div>
                     <div className="small text-muted d-flex gap-2 flex-wrap mt-1">
                         <StatusBadge group="ticketType" value={ticket.ticket_type} />
+                        {ticket.contract && (
+                            <Badge tone="info" icon="bi-file-earmark-check">
+                                از استخدام
+                            </Badge>
+                        )}
                         {ticket.channel === 'phone' && (
                             <Badge tone="secondary" icon="bi-telephone">
                                 تماس تلفنی
@@ -102,7 +107,7 @@ export default function Index({ tickets, filters: initialFilters, mentors, optio
             render: (ticket) => (ticket.assigned_mentor ? <Person user={ticket.assigned_mentor} size="sm" /> : <Badge tone="warning">بدون منتور</Badge>),
         },
         { key: 'status', label: 'وضعیت', render: (ticket) => <StatusBadge group="ticketStatus" value={ticket.status} /> },
-        { key: 'created_at', label: 'ثبت', render: (ticket) => <span title={formatDateTime(ticket.created_at)}>{formatRelative(ticket.created_at)}</span> },
+        { key: 'created_at', label: 'ثبت', className: 'text-nowrap', render: (ticket) => <span title={formatDateTime(ticket.created_at)}>{formatRelative(ticket.created_at)}</span> },
     ];
 
     return (

@@ -1,6 +1,5 @@
 import ModalForm from '../../../Components/Form/ModalForm';
 import NumberInput from '../../../Components/Form/NumberInput';
-import RadioCards from '../../../Components/Form/RadioCards';
 import Textarea from '../../../Components/Form/Textarea';
 import PageHeader from '../../../Components/Panel/PageHeader';
 import Pagination from '../../../Components/Panel/Pagination';
@@ -16,13 +15,9 @@ import { formatDateTime, formatRelative } from '../../../lib/format';
 import { label } from '../../../lib/labels';
 import { fillRoute } from '../../../lib/text';
 
-const TRACK_TEXT = {
-    freelancer: { icon: 'bi-laptop', description: 'همراهی فریلنسر تا اولین پروژه‌های موفق' },
-    employer: { icon: 'bi-briefcase', description: 'کمک به کارفرما برای تعریف و مدیریت پروژه' },
-};
-
-function ProgramForm({ modal, tracks, routes }) {
+function ProgramForm({ modal, routes }) {
     const ticket = modal.record;
+    const fromContract = Boolean(ticket?.contract);
 
     return (
         <ModalForm
@@ -34,37 +29,39 @@ function ProgramForm({ modal, tracks, routes }) {
             size="lg"
             method="post"
             url={routes.startProgram}
-            initial={{ ticket_id: ticket?.id ?? '', track: 'freelancer', goal: '', price: '' }}
+            initial={{ ticket_id: ticket?.id ?? '', goal: fromContract ? `همراهی در پروژه‌ی «${ticket.contract.project_title ?? ''}» تا تحویل موفق` : '', price: '' }}
             transform={(data) => ({ ...data, price: data.price === '' ? null : Number(data.price) })}
             submitLabel="شروع برنامه"
             submitIcon="bi-rocket-takeoff"
         >
             {(form) => (
                 <div className="row g-3">
-                    <RadioCards
-                        form={form}
-                        name="track"
-                        label="مسیر"
-                        className="col-12"
-                        columns={2}
-                        options={tracks.map((track) => ({ value: track, label: label('track', track), ...TRACK_TEXT[track] }))}
-                    />
+                    {fromContract && (
+                        <div className="col-12">
+                            <div className="jl-callout is-info small">
+                                <i className="bi bi-file-earmark-check" /> این فریلنسر در پیشنهادش برای پروژه‌ی «{ticket.contract.project_title}» منتور خواسته و استخدام شده. با شروع برنامه، تو منتور این
+                                قرارداد می‌شوی؛ هزینه‌ی منتورینگ از کارمزد قرارداد تأمین می‌شود.
+                            </div>
+                        </div>
+                    )}
                     <Textarea form={form} name="goal" label="هدف برنامه" required rows={4} maxLength={2000} className="col-12" placeholder="مثلاً: تحویل اولین پروژه‌ی وردپرسی با کیفیت و گرفتن نظر مثبت از کارفرما" />
-                    <NumberInput
-                        form={form}
-                        name="price"
-                        label="هزینه‌ی برنامه"
-                        money
-                        className="col-md-6"
-                        hint="برای تازه‌کارهایی که منتورینگ رایگان دارند خودکار صفر می‌شود."
-                    />
+                    {!fromContract && (
+                        <NumberInput
+                            form={form}
+                            name="price"
+                            label="هزینه‌ی برنامه"
+                            money
+                            className="col-md-6"
+                            hint="برای تازه‌کارهایی که منتورینگ رایگان دارند خودکار صفر می‌شود."
+                        />
+                    )}
                 </div>
             )}
         </ModalForm>
     );
 }
 
-export default function Index({ tab, tickets, counts, tracks, routes }) {
+export default function Index({ tab, tickets, counts, routes }) {
     const filters = useFilters({ tab });
     const programStarter = useModal();
     const current = filters.filters.tab ?? 'queue';
@@ -87,7 +84,10 @@ export default function Index({ tab, tickets, counts, tracks, routes }) {
 
     return (
         <>
-            <PageHeader title="تیکت‌ها" description="از صف مشترک تیکت بردار و تا حل شدن مشکل کنار تازه‌کار بمان." />
+            <PageHeader
+                title="تیکت‌ها"
+                description="از صف مشترک تیکت بردار و تا حل شدن مشکل کنار فریلنسر تازه‌کار بمان. وقتی فریلنسری که در پیشنهادش منتور خواسته استخدام شود، تیکتش خودکار به صف می‌آید."
+            />
 
             <Tabs
                 className="mb-3"
@@ -116,6 +116,11 @@ export default function Index({ tab, tickets, counts, tracks, routes }) {
                                             <h2 className="h6 fw-bold mb-0">{ticket.subject}</h2>
                                             <StatusBadge group="ticketType" value={ticket.ticket_type} />
                                             <StatusBadge group="ticketStatus" value={ticket.status} />
+                                            {ticket.contract && (
+                                                <Badge tone="info" icon="bi-file-earmark-check">
+                                                    منتورینگ پروژه‌ی استخدام‌شده
+                                                </Badge>
+                                            )}
                                             {ticket.programs_count > 0 && (
                                                 <Badge tone="success" icon="bi-people">
                                                     برنامه دارد
@@ -136,7 +141,7 @@ export default function Index({ tab, tickets, counts, tracks, routes }) {
                                         <p className="mb-0 text-muted-2 jl-clamp-3">{ticket.message}</p>
                                     </div>
                                     <div className="d-flex flex-column align-items-end gap-2">
-                                        <Person user={ticket.requester} />
+                                        <Person user={ticket.requester} role="freelancer" />
                                         <div className="d-flex flex-wrap gap-2 justify-content-end">
                                             {ticket.status === 'open' && !ticket.assigned_mentor_id && (
                                                 <button type="button" className="btn btn-primary btn-sm" onClick={() => act(ticket, 'take')}>
@@ -173,7 +178,7 @@ export default function Index({ tab, tickets, counts, tracks, routes }) {
                 </div>
             )}
 
-            <ProgramForm modal={programStarter} tracks={tracks} routes={routes} />
+            <ProgramForm modal={programStarter} routes={routes} />
         </>
     );
 }

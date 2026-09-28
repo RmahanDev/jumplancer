@@ -24,7 +24,7 @@ export default function ThemeToggle({ withLabel = false }) {
             className={withLabel ? 'btn btn-ghost btn-sm' : 'jl-icon-btn is-bordered'}
             onClick={() => toggleTheme()}
             aria-label={`تغییر تم (اکنون: ${current.text})`}
-            data-tip={withLabel ? undefined : `${current.text} — کلید T`}
+            data-tip={withLabel ? undefined : current.text}
         >
             <i className={`bi ${current.icon}`} key={preference} style={{ animation: 'jl-pop .25s ease both' }} />
             {withLabel && <span>{current.text}</span>}

@@ -1,5 +1,6 @@
 import { Link, router } from '@inertiajs/react';
-import { ContractProgress, MilestoneList } from '../../../Components/Domain/Contract';
+import { ContractProgress, DepositNote, MilestoneList, OpenDisputeNote } from '../../../Components/Domain/Contract';
+import DisputeForm from '../../../Components/Domain/DisputeForm';
 import JalaliDateInput from '../../../Components/Form/JalaliDateInput';
 import ModalForm from '../../../Components/Form/ModalForm';
 import NumberInput from '../../../Components/Form/NumberInput';
@@ -93,9 +94,11 @@ export default function Index({ contracts, filters: initialFilters, balance, rou
     const filters = useFilters(initialFilters);
     const planner = useModal();
     const reviewer = useModal();
+    const disputer = useModal();
 
-    const fund = async (milestone) => {
-        const short = Number(milestone.amount) - Number(balance);
+    const fund = async (milestone, contract) => {
+        const fromDeposit = Math.min(Number(contract.deposit_balance ?? 0), Number(milestone.amount));
+        const short = Number(milestone.amount) - fromDeposit - Number(balance);
 
         if (short > 0) {
             const ok = await confirm({
@@ -115,7 +118,10 @@ export default function Index({ contracts, filters: initialFilters, balance, rou
 
         const ok = await confirm({
             title: `تأمین «${milestone.title}»؟`,
-            message: `${formatMoney(milestone.amount)} از کیف پولت برداشته و تا تحویل کار در امانت نگه داشته می‌شود.`,
+            message:
+                fromDeposit > 0
+                    ? `${formatMoney(fromDeposit)} از امانت حسن انجام کار${fromDeposit < Number(milestone.amount) ? ` و ${formatMoney(Number(milestone.amount) - fromDeposit)} از کیف پولت` : ''} برای این مرحله در امانت می‌ماند تا کار تحویل شود.`
+                    : `${formatMoney(milestone.amount)} از کیف پولت برداشته و تا تحویل کار در امانت نگه داشته می‌شود.`,
             confirmLabel: 'تأمین و امانت',
             tone: 'primary',
             icon: 'bi-safe2',
@@ -142,9 +148,20 @@ export default function Index({ contracts, filters: initialFilters, balance, rou
 
     const close = async (contract, status) => {
         const completing = status === 'completed';
+        const held = Number(contract.deposit_balance ?? 0) + Number(contract.progress?.funded ?? 0);
+
+        // Money in escrow: only an expert can cancel, so the dispute form opens instead.
+        if (!completing && held > 0) {
+            disputer.show({ contract, cancelling: true });
+
+            return;
+        }
+
         const ok = await confirm({
             title: completing ? 'پایان قرارداد؟' : 'لغو قرارداد؟',
-            message: completing ? 'قرارداد تکمیل‌شده ثبت می‌شود و می‌توانی برای فریلنسر نظر بگذاری.' : 'قرارداد و پروژه لغو می‌شوند. مرحله‌های در امانت باید قبلاً تسویه شده باشند.',
+            message: completing
+                ? `قرارداد تکمیل‌شده ثبت می‌شود و می‌توانی برای فریلنسر نظر بگذاری.${Number(contract.deposit_balance) > 0 ? ` ${formatMoney(contract.deposit_balance)} امانت مصرف‌نشده به کیف پولت برمی‌گردد.` : ''}`
+                : 'قرارداد و پروژه لغو می‌شوند.',
             confirmLabel: completing ? 'پایان قرارداد' : 'لغو قرارداد',
             tone: completing ? 'primary' : 'danger',
         });
@@ -193,7 +210,7 @@ export default function Index({ contracts, filters: initialFilters, balance, rou
                                     <div className="d-flex align-items-center gap-1">
                                         {contract.mentorship_included && (
                                             <Badge tone="info" icon="bi-mortarboard">
-                                                {contract.is_free_mentorship ? 'منتورینگ رایگان' : 'با منتورینگ'}
+                                                فریلنسر با منتور
                                             </Badge>
                                         )}
                                         <StatusBadge group="contractStatus" value={contract.status} />
@@ -220,6 +237,15 @@ export default function Index({ contracts, filters: initialFilters, balance, rou
                                                         >
                                                             پایان قرارداد
                                                         </DropdownItem>
+                                                        <DropdownItem
+                                                            icon="bi-shield-exclamation"
+                                                            onClick={() => {
+                                                                closeMenu();
+                                                                disputer.show({ contract });
+                                                            }}
+                                                        >
+                                                            درخواست بررسی کارشناس
+                                                        </DropdownItem>
                                                         <DropdownDivider />
                                                         <DropdownItem
                                                             icon="bi-x-circle"
@@ -241,11 +267,15 @@ export default function Index({ contracts, filters: initialFilters, balance, rou
                                     <div className="row g-3 mb-3">
                                         <div className="col-md-4">
                                             <div className="small text-muted mb-1">فریلنسر</div>
-                                            <Person user={contract.freelancer} />
+                                            <Person user={contract.freelancer} role="freelancer" />
                                         </div>
                                         <div className="col-md-4">
-                                            <div className="small text-muted mb-1">منتور</div>
-                                            {contract.mentor ? <Person user={contract.mentor} /> : <span className="text-muted">—</span>}
+                                            <div className="small text-muted mb-1">منتور فریلنسر</div>
+                                            {contract.mentor ? (
+                                                <Person user={contract.mentor} role="mentor" />
+                                            ) : (
+                                                <span className="text-muted small">{contract.mentorship_included ? 'در صف منتورها' : 'فریلنسر منتور نخواسته'}</span>
+                                            )}
                                         </div>
                                         <div className="col-md-4">
                                             <div className="small text-muted mb-1">پرداخت‌شده</div>
@@ -253,11 +283,16 @@ export default function Index({ contracts, filters: initialFilters, balance, rou
                                         </div>
                                     </div>
 
+                                    <div className="d-grid gap-2 mb-3">
+                                        <OpenDisputeNote dispute={contract.open_dispute} />
+                                        <DepositNote contract={contract} viewer="employer" />
+                                    </div>
+
                                     <MilestoneList
                                         milestones={contract.milestones}
                                         actions={(milestone) =>
                                             !active ? null : milestone.status === 'pending' ? (
-                                                <button type="button" className="btn btn-accent btn-sm" onClick={() => fund(milestone)}>
+                                                <button type="button" className="btn btn-accent btn-sm" onClick={() => fund(milestone, contract)}>
                                                     <i className="bi bi-safe2" /> تأمین
                                                 </button>
                                             ) : milestone.status === 'submitted' ? (
@@ -300,6 +335,7 @@ export default function Index({ contracts, filters: initialFilters, balance, rou
 
             <MilestoneForm modal={planner} routes={routes} />
             <ReviewForm modal={reviewer} routes={routes} />
+            <DisputeForm modal={disputer} url={routes.dispute} viewer="employer" />
         </>
     );
 }

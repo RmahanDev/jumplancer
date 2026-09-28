@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react';
 import CheckboxCards from '../../../Components/Form/CheckboxCards';
 import ModalForm from '../../../Components/Form/ModalForm';
 import RadioCards from '../../../Components/Form/RadioCards';
-import Switch from '../../../Components/Form/Switch';
 import TextInput from '../../../Components/Form/TextInput';
 import PageHeader from '../../../Components/Panel/PageHeader';
 import Avatar from '../../../Components/UI/Avatar';
 import { Badge, StatusBadge } from '../../../Components/UI/Badge';
+import { RoleTag } from '../../../Components/UI/UserName';
 import { confirm } from '../../../Components/UI/ConfirmDialog';
 import EmptyState from '../../../Components/UI/EmptyState';
 import SearchInput from '../../../Components/UI/SearchInput';
@@ -16,7 +16,7 @@ import { PERMISSIONS } from '../../../lib/labels';
 import { fillRoute, normalizeForSearch } from '../../../lib/text';
 import { destroy } from '../../../lib/actions';
 
-function StaffForm({ modal, permissions, grantable, canCreateSuperAdmin, routes }) {
+function StaffForm({ modal, permissions, grantable, supportDefaults, canCreateSuperAdmin, routes }) {
     const staff = modal.record;
     const editing = Boolean(staff);
 
@@ -33,8 +33,8 @@ function StaffForm({ modal, permissions, grantable, canCreateSuperAdmin, routes 
         <ModalForm
             open={modal.open}
             onClose={modal.close}
-            title={editing ? `ویرایش ${staff.name}` : 'تعریف مدیر جدید'}
-            subtitle="هر مدیر فقط بخش‌هایی را می‌بیند که به آن‌ها دسترسی دارد."
+            title={editing ? `ویرایش ${staff.name}` : 'تعریف ادمین یا پشتیبان جدید'}
+            subtitle="هر ادمین یا پشتیبان فقط بخش‌هایی را می‌بیند که به آن‌ها دسترسی دارد."
             icon={editing ? 'bi-person-gear' : 'bi-person-badge'}
             size="lg"
             method={editing ? 'put' : 'post'}
@@ -45,11 +45,11 @@ function StaffForm({ modal, permissions, grantable, canCreateSuperAdmin, routes 
                 email: staff?.email ?? '',
                 phone: staff?.phone ?? '',
                 password: '',
-                is_super_admin: staff?.is_super_admin ?? false,
+                role: staff?.role ?? 'admin',
                 status: staff?.status ?? 'active',
                 permissions: staff?.is_super_admin ? [] : (staff?.permissions ?? []),
             }}
-            submitLabel={editing ? 'ذخیره‌ی تغییرات' : 'تعریف مدیر'}
+            submitLabel={editing ? 'ذخیره‌ی تغییرات' : 'تعریف حساب'}
         >
             {(form) => (
                 <div className="row g-3">
@@ -70,15 +70,28 @@ function StaffForm({ modal, permissions, grantable, canCreateSuperAdmin, routes 
                         hint={editing ? 'خالی بگذار تا رمز فعلی تغییر نکند.' : 'حداقل ۸ کاراکتر، شامل حرف و عدد. رمز را جداگانه به او بده.'}
                     />
 
-                    {canCreateSuperAdmin && (
-                        <Switch
-                            form={form}
-                            name="is_super_admin"
-                            className="col-12"
-                            label="مدیر کل (دسترسی کامل برنامه‌نویس)"
-                            description="به همه‌ی بخش‌ها و ابزار برنامه‌نویس دسترسی دارد و می‌تواند مدیر کل دیگری هم تعریف کند."
-                        />
-                    )}
+                    <RadioCards
+                        label="نقش"
+                        className="col-12"
+                        columns={canCreateSuperAdmin ? 3 : 2}
+                        value={form.data.role}
+                        error={form.errors.role}
+                        onChange={(role) => {
+                            form.setData((data) => ({
+                                ...data,
+                                role,
+                                // A new support agent starts with the usual support access; admins pick theirs.
+                                permissions: !editing && role === 'support' ? supportDefaults.filter((permission) => grantable.includes(permission)) : data.permissions,
+                            }));
+                        }}
+                        options={[
+                            { value: 'admin', label: 'ادمین', icon: 'bi-person-badge', description: 'مدیریت بخش‌هایی که دسترسی‌اش را دارد' },
+                            { value: 'support', label: 'پشتیبان', icon: 'bi-headset', description: 'پاسخ به کاربران، تیکت‌ها و درخواست‌های بازگشت وجه' },
+                            ...(canCreateSuperAdmin
+                                ? [{ value: 'super_admin', label: 'مدیر کل', icon: 'bi-stars', description: 'دسترسی کامل به همه‌ی بخش‌ها و ابزار برنامه‌نویس' }]
+                                : []),
+                        ]}
+                    />
 
                     {editing && (
                         <RadioCards
@@ -94,7 +107,7 @@ function StaffForm({ modal, permissions, grantable, canCreateSuperAdmin, routes 
                         />
                     )}
 
-                    {form.data.is_super_admin ? (
+                    {form.data.role === 'super_admin' ? (
                         <div className="col-12">
                             <div className="alert alert-warning d-flex gap-2 mb-0">
                                 <i className="bi bi-shield-exclamation mt-1" />
@@ -119,7 +132,7 @@ function StaffForm({ modal, permissions, grantable, canCreateSuperAdmin, routes 
     );
 }
 
-export default function Index({ staff, permissions, grantable, canCreateSuperAdmin, routes }) {
+export default function Index({ staff, permissions, grantable, supportDefaults = [], canCreateSuperAdmin, routes }) {
     const editor = useModal();
     const [search, setSearch] = useState('');
 
@@ -145,9 +158,9 @@ export default function Index({ staff, permissions, grantable, canCreateSuperAdm
     return (
         <>
             <PageHeader
-                title="مدیران و دسترسی‌ها"
-                description={`${formatNumber(staff.length)} حساب مدیریتی. ساختن ادمین جدید خودش یک دسترسی جداست («مدیریت مدیران»).`}
-                primary={{ label: 'مدیر جدید', icon: 'bi-person-plus', onClick: () => editor.show(null) }}
+                title="مدیران، پشتیبان‌ها و دسترسی‌ها"
+                description={`${formatNumber(staff.length)} حساب مدیریتی. ساختن ادمین یا پشتیبان جدید خودش یک دسترسی جداست («مدیریت مدیران»).`}
+                primary={{ label: 'حساب جدید', icon: 'bi-person-plus', onClick: () => editor.show(null) }}
             />
 
             <div className="d-flex align-items-center gap-2 mb-3 jl-rise">
@@ -173,7 +186,7 @@ export default function Index({ staff, permissions, grantable, canCreateSuperAdm
                                                 <span className="ltr">@{member.username}</span> · {member.email}
                                             </div>
                                             <div className="d-flex flex-wrap gap-1 mt-2">
-                                                {member.is_super_admin ? <Badge tone="accent" icon="bi-stars">مدیر کل</Badge> : <Badge tone="primary">ادمین</Badge>}
+                                                <RoleTag role={member.role} />
                                                 {member.is_root && <Badge tone="secondary" icon="bi-lock">حساب اصلی</Badge>}
                                                 <StatusBadge group="userStatus" value={member.status} />
                                             </div>
@@ -222,7 +235,7 @@ export default function Index({ staff, permissions, grantable, canCreateSuperAdm
                 </div>
             )}
 
-            <StaffForm modal={editor} permissions={permissions} grantable={grantable} canCreateSuperAdmin={canCreateSuperAdmin} routes={routes} />
+            <StaffForm modal={editor} permissions={permissions} grantable={grantable} supportDefaults={supportDefaults} canCreateSuperAdmin={canCreateSuperAdmin} routes={routes} />
         </>
     );
 }

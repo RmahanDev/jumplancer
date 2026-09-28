@@ -49,7 +49,7 @@ export default function Index({ transactions, filters: initialFilters, summary, 
             mobile: false,
             render: (transaction) => (transaction.gateway_ref ? <code className="small">{transaction.gateway_ref}</code> : <span className="text-muted">—</span>),
         },
-        { key: 'created_at', label: 'زمان', render: (transaction) => <span title={formatDateTime(transaction.created_at)}>{formatRelative(transaction.created_at)}</span> },
+        { key: 'created_at', label: 'زمان', className: 'text-nowrap', render: (transaction) => <span title={formatDateTime(transaction.created_at)}>{formatRelative(transaction.created_at)}</span> },
     ];
 
     return (

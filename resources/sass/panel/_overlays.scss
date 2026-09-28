@@ -80,23 +80,18 @@
 }
 
 .jl-modal .modal-footer {
-    justify-content: space-between;
+    justify-content: flex-end;
     padding: .85rem 1.35rem;
     background: var(--jl-surface-2);
     border-bottom-left-radius: var(--bs-modal-inner-border-radius);
     border-bottom-right-radius: var(--bs-modal-inner-border-radius);
-
-    .jl-modal-hint {
-        color: var(--jl-muted);
-        font-size: .76rem;
-    }
 }
 
 [data-bs-theme='dark'] .btn-close {
     filter: invert(1) grayscale(100%) brightness(200%);
 }
 
-// Command palette (Ctrl + K)
+// Panel search (opened from the topbar)
 .jl-palette {
     position: fixed;
     inset-inline: 0;
@@ -186,23 +181,6 @@
         .bi {
             color: var(--jl-primary-text);
         }
-    }
-}
-
-.jl-palette-footer {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    padding: .6rem 1.1rem;
-    border-top: 1px solid var(--jl-border);
-    background: var(--jl-surface-2);
-    color: var(--jl-muted);
-    font-size: .74rem;
-
-    span {
-        display: inline-flex;
-        align-items: center;
-        gap: .35rem;
     }
 }
 
@@ -303,24 +281,3 @@
     }
 }
 
-.jl-shortcuts {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: .35rem 1.5rem;
-
-    .jl-shortcut-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: .45rem 0;
-        border-bottom: 1px dashed var(--jl-border);
-        font-size: .86rem;
-    }
-
-    .jl-keys {
-        display: inline-flex;
-        gap: .25rem;
-        direction: ltr;
-    }
-}

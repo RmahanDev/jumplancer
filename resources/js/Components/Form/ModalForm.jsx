@@ -1,7 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import { useEffect } from 'react';
 import Modal, { ModalBody, ModalFooter } from '../UI/Modal';
-import { useHotkeys } from '../../hooks/useHotkeys';
 
 /**
  * Every "add / edit" form in the dashboards lives in a modal.
@@ -10,7 +9,7 @@ import { useHotkeys } from '../../hooks/useHotkeys';
  *     {(form) => <TextInput form={form} name="title" label="عنوان" />}
  * </ModalForm>
  *
- * Ctrl+Enter submits, Esc closes, field errors come back from Laravel validation, and errors
+ * The submit button (or Enter in a single-line field) submits, field errors come back from Laravel validation, and errors
  * about the operation itself (keys that are not fields) are shown above the fields.
  * `submitLabel` / `submitIcon` may be functions of the form, for a label that follows a switch.
  */
@@ -77,8 +76,6 @@ export default function ModalForm({
             },
         });
     };
-
-    useHotkeys('mod+enter', () => submit(), { enabled: open, allowInInputs: true, overlay: true });
 
     const generalErrors = Object.entries(form.errors).filter(([key]) => !(key.split('.')[0] in initial));
 

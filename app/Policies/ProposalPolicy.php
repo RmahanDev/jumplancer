@@ -34,14 +34,10 @@ class ProposalPolicy
     }
 
     /**
-     * A mentor reviews proposals on projects they supervise or sent by their active mentees.
+     * A mentor reviews proposals sent by their active mentees.
      */
     public function review(User $user, Proposal $proposal): Response
     {
-        if ($proposal->project?->mentor_id === $user->id) {
-            return Response::allow();
-        }
-
         $mentorsFreelancer = $user->mentorshipsAsMentor()
             ->where('mentee_id', $proposal->freelancer_id)
             ->where('status', MentorshipProgramStatus::Active)

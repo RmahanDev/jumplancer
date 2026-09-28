@@ -46,7 +46,7 @@ function ConfirmModal({ current }) {
             tone={tone === 'danger' ? 'danger' : tone}
             size="sm"
             footer={
-                <ModalFooter hint={false}>
+                <ModalFooter>
                     <button type="button" className="btn btn-ghost" onClick={() => settle(false)}>
                         انصراف
                     </button>
@@ -58,7 +58,6 @@ function ConfirmModal({ current }) {
                         data-autofocus={current.requireText ? undefined : true}
                     >
                         {current.confirmLabel ?? 'تأیید'}
-                        <kbd>Enter</kbd>
                     </button>
                 </ModalFooter>
             }

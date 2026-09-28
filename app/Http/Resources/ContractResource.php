@@ -23,6 +23,8 @@ class ContractResource extends JsonResource
         return [
             'id' => $this->id,
             'amount' => $this->amount,
+            'deposit_amount' => $this->deposit_amount,
+            'deposit_balance' => $this->deposit_balance,
             'fee_percent' => $this->fee_percent,
             'mentorship_included' => $this->mentorship_included,
             'is_free_mentorship' => $this->is_free_mentorship,
@@ -41,6 +43,17 @@ class ContractResource extends JsonResource
             'progress' => $this->whenLoaded('milestones', fn (): array => $this->progress()),
             'reviewed' => $this->when(isset($this->reviewed_by_viewer), fn (): bool => (bool) $this->reviewed_by_viewer),
             'open_disputes_count' => $this->whenCounted('disputes'),
+            'open_dispute' => $this->whenLoaded('openDispute', fn () => $this->openDispute ? [
+                'id' => $this->openDispute->id,
+                'status' => $this->openDispute->status->value,
+                'reason' => $this->openDispute->reason,
+                'raised_by_viewer' => $this->openDispute->raised_by === $request->user()?->id,
+                'created_at' => $this->openDispute->created_at?->toIso8601String(),
+            ] : null),
+            'mentorship_ticket' => $this->whenLoaded('mentorshipTicket', fn () => $this->mentorshipTicket ? [
+                'id' => $this->mentorshipTicket->id,
+                'status' => $this->mentorshipTicket->status->value,
+            ] : null),
         ];
     }
 

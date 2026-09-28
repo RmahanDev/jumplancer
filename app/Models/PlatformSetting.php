@@ -42,6 +42,22 @@ class PlatformSetting extends Model
     }
 
     /**
+     * Typed value of a setting, or the default when the row is missing or empty.
+     */
+    public static function valueOf(string $key, int|bool|string|null $default = null): int|bool|string|null
+    {
+        return static::query()->firstWhere('setting_key', $key)?->typed_value ?? $default;
+    }
+
+    /**
+     * Share of the proposal price held as a good-faith deposit when an employer hires.
+     */
+    public static function hireDepositPercent(): int
+    {
+        return max(0, min(100, (int) static::valueOf('hire_deposit_percent', 45)));
+    }
+
+    /**
      * The setting value cast according to value_type.
      *
      * @return Attribute<int|bool|string|null, never>

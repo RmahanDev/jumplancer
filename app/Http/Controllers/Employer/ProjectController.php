@@ -35,7 +35,7 @@ class ProjectController extends Controller
         $employer = $request->user();
 
         $projects = $employer->postedProjects()
-            ->with(['category', 'skills', 'mentor'])
+            ->with(['category', 'skills', 'currentContract.freelancer'])
             ->withCount('proposals')
             ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
             ->when($filters['search'] ?? null, fn ($query, string $search) => $query->where('title', 'like', '%'.PersianText::normalize($search).'%'))

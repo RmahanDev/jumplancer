@@ -5,23 +5,26 @@ import RadioCards from '../../../Components/Form/RadioCards';
 import Select from '../../../Components/Form/Select';
 import Switch from '../../../Components/Form/Switch';
 import TextInput from '../../../Components/Form/TextInput';
+import ProposalList from '../../../Components/Domain/ProposalList';
 import Textarea from '../../../Components/Form/Textarea';
 import PageHeader from '../../../Components/Panel/PageHeader';
 import TableCard from '../../../Components/Panel/TableCard';
 import { Person } from '../../../Components/UI/Avatar';
+import UserName from '../../../Components/UI/UserName';
 import { Badge, StatusBadge } from '../../../Components/UI/Badge';
 import { confirm } from '../../../Components/UI/ConfirmDialog';
 import DataTable from '../../../Components/UI/DataTable';
 import { DropdownDivider, DropdownItem } from '../../../Components/UI/Dropdown';
 import EmptyState from '../../../Components/UI/EmptyState';
+import Modal, { ModalBody } from '../../../Components/UI/Modal';
 import RowActions from '../../../Components/UI/RowActions';
 import SearchInput from '../../../Components/UI/SearchInput';
 import Tabs from '../../../Components/UI/Tabs';
 import { useFilters } from '../../../hooks/useFilters';
 import { useModal } from '../../../hooks/useModal';
 import { destroy, put } from '../../../lib/actions';
-import { formatDate, formatRelative } from '../../../lib/format';
-import { budgetText, categoryOptions } from '../../../lib/project';
+import { formatDate, formatNumber, formatRelative } from '../../../lib/format';
+import { budgetShort, budgetText, categoryOptions } from '../../../lib/project';
 import { label, options } from '../../../lib/labels';
 import { fillRoute } from '../../../lib/text';
 
@@ -47,7 +50,7 @@ function ReviewForm({ modal, routes }) {
                         <dl className="jl-details">
                             <dt>کارفرما</dt>
                             <dd>
-                                <Person user={project.employer} />
+                                <Person user={project.employer} role="employer" />
                             </dd>
                             <dt>دسته</dt>
                             <dd>{project.category?.name ?? '—'}</dd>
@@ -81,7 +84,58 @@ function ReviewForm({ modal, routes }) {
     );
 }
 
-function EditForm({ modal, routes, categories, mentors, statuses, budgetTypes }) {
+function HiredFreelancer({ project }) {
+    if (!project.freelancer) {
+        return null;
+    }
+
+    return (
+        <div className="jl-callout is-success d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div className="d-flex align-items-center gap-2 min-w-0">
+                <i className="bi bi-person-check fs-5" />
+                <span className="small text-muted">فریلنسر استخدام‌شده:</span>
+                <Person user={project.freelancer} role="freelancer" size="sm" />
+            </div>
+            {project.contract && <StatusBadge group="contractStatus" value={project.contract.status} />}
+        </div>
+    );
+}
+
+function ProposalsSection({ project }) {
+    const proposals = project?.proposals ?? [];
+    const withMentor = proposals.filter((proposal) => proposal.mentorship_requested).length;
+
+    return (
+        <section>
+            <h3 className="jl-section-title">
+                <i className="bi bi-inboxes text-primary" /> پیشنهادهای فریلنسرها
+                <span className="text-muted small fw-normal">
+                    ({formatNumber(proposals.length)} پیشنهاد{withMentor > 0 ? ` · ${formatNumber(withMentor)} با درخواست منتور` : ''})
+                </span>
+            </h3>
+            <ProposalList proposals={proposals} />
+        </section>
+    );
+}
+
+function ProposalsModal({ modal }) {
+    const project = modal.record;
+
+    return (
+        <Modal open={modal.open} onClose={modal.close} title="پیشنهادهای پروژه" subtitle={project?.title} icon="bi-inboxes" size="lg">
+            <ModalBody>
+                {project && (
+                    <div className="d-grid gap-3">
+                        <HiredFreelancer project={project} />
+                        <ProposalsSection project={project} />
+                    </div>
+                )}
+            </ModalBody>
+        </Modal>
+    );
+}
+
+function EditForm({ modal, routes, categories, statuses, budgetTypes }) {
     const project = modal.record;
 
     return (
@@ -104,14 +158,12 @@ function EditForm({ modal, routes, categories, mentors, statuses, budgetTypes })
                 budget_max: project?.budget_max ?? '',
                 is_beginner_friendly: project?.is_beginner_friendly ?? true,
                 deadline: project?.deadline ?? '',
-                mentor_id: project?.mentor_id ?? '',
             }}
             transform={(data) => ({
                 ...data,
                 budget_min: data.budget_min === '' ? null : Number(data.budget_min),
                 budget_max: data.budget_max === '' ? null : Number(data.budget_max),
                 deadline: data.deadline || null,
-                mentor_id: data.mentor_id || null,
             })}
         >
             {(form) => (
@@ -124,25 +176,24 @@ function EditForm({ modal, routes, categories, mentors, statuses, budgetTypes })
                     <NumberInput form={form} name="budget_min" label="حداقل بودجه" money className="col-md-4" />
                     <NumberInput form={form} name="budget_max" label="حداکثر بودجه" money className="col-md-4" />
                     <JalaliDateInput form={form} name="deadline" label="مهلت انجام" className="col-md-6" />
-                    <Select
-                        form={form}
-                        name="mentor_id"
-                        label="منتور همراه"
-                        className="col-md-6"
-                        placeholder="بدون منتور"
-                        options={mentors.map((mentor) => ({ value: mentor.id, label: mentor.name }))}
-                    />
-                    <Switch form={form} name="is_beginner_friendly" className="col-12" label="مناسب تازه‌کارها" description="در فهرست پروژه‌های فریلنسرهای تازه‌کار بالاتر نمایش داده می‌شود." />
+                    <Switch form={form} name="is_beginner_friendly" className="col-md-6 align-self-end" label="مناسب تازه‌کارها" description="در فهرست پروژه‌های فریلنسرهای تازه‌کار بالاتر نمایش داده می‌شود." />
+                    {project && (
+                        <div className="col-12 d-grid gap-3 pt-2 border-top">
+                            <HiredFreelancer project={project} />
+                            <ProposalsSection project={project} />
+                        </div>
+                    )}
                 </div>
             )}
         </ModalForm>
     );
 }
 
-export default function Index({ projects, filters: initialFilters, statusCounts, categories, mentors, options: choices, routes }) {
+export default function Index({ projects, filters: initialFilters, statusCounts, categories, options: choices, routes }) {
     const filters = useFilters(initialFilters);
     const reviewer = useModal();
     const editor = useModal();
+    const proposalsViewer = useModal();
 
     const total = Object.values(statusCounts).reduce((sum, count) => sum + Number(count), 0);
     const tabs = [
@@ -172,17 +223,27 @@ export default function Index({ projects, filters: initialFilters, statusCounts,
             label: 'پروژه',
             primary: true,
             render: (project) => (
-                <div className="min-w-0">
-                    <div className="fw-semibold text-truncate" style={{ maxWidth: 360 }}>
-                        {project.title}
-                    </div>
-                    <div className="small text-muted text-truncate">
-                        {project.employer?.name} · {project.category?.name}
+                <div className="min-w-0" style={{ maxWidth: 260 }}>
+                    <div className="fw-semibold text-truncate">{project.title}</div>
+                    <div className="small text-muted d-flex flex-wrap align-items-center gap-1 min-w-0">
+                        <UserName user={project.employer} role="employer" /> <span>·</span> <span className="text-truncate">{project.category?.name}</span> <span>·</span>
+                        <span className="text-nowrap" title={formatDate(project.created_at)}>
+                            {formatRelative(project.status === 'pending_review' ? (project.submitted_at ?? project.created_at) : project.created_at)}
+                        </span>
                     </div>
                 </div>
             ),
         },
-        { key: 'budget', label: 'بودجه', render: (project) => <span className="small num">{budgetText(project)}</span> },
+        {
+            key: 'budget',
+            label: 'بودجه',
+            className: 'text-nowrap',
+            render: (project) => (
+                <span className="small num" title={budgetText(project)}>
+                    {budgetShort(project)}
+                </span>
+            ),
+        },
         {
             key: 'status',
             label: 'وضعیت',
@@ -197,12 +258,42 @@ export default function Index({ projects, filters: initialFilters, statusCounts,
                 </div>
             ),
         },
-        { key: 'proposals_count', label: 'پیشنهاد', className: 'num', render: (project) => project.proposals_count ?? 0 },
-        { key: 'mentor', label: 'منتور', render: (project) => (project.mentor ? <Person user={project.mentor} size="sm" /> : <span className="text-muted">—</span>) },
         {
-            key: 'created_at',
-            label: 'ثبت',
-            render: (project) => <span title={formatDate(project.created_at)}>{formatRelative(project.status === 'pending_review' ? (project.submitted_at ?? project.created_at) : project.created_at)}</span>,
+            key: 'proposals_count',
+            label: 'پیشنهاد',
+            render: (project) => {
+                const count = project.proposals?.length ?? project.proposals_count ?? 0;
+                const withMentor = (project.proposals ?? []).filter((proposal) => proposal.mentorship_requested).length;
+
+                return count === 0 ? (
+                    <span className="text-muted num">۰</span>
+                ) : (
+                    <button
+                        type="button"
+                        className="btn btn-soft btn-sm num text-nowrap"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            proposalsViewer.show(project);
+                        }}
+                        title={withMentor > 0 ? `${formatNumber(withMentor)} پیشنهاد با درخواست منتور` : undefined}
+                    >
+                        {formatNumber(count)} پیشنهاد
+                        {withMentor > 0 && <i className="bi bi-mortarboard text-info" />}
+                    </button>
+                );
+            },
+        },
+        {
+            key: 'freelancer',
+            label: 'فریلنسر',
+            render: (project) =>
+                project.freelancer ? (
+                    <Person user={project.freelancer} role="freelancer" size="sm" />
+                ) : (
+                    <span className="small text-muted text-nowrap" title="هنوز کسی استخدام نشده">
+                        —
+                    </span>
+                ),
         },
     ];
 
@@ -286,6 +377,15 @@ export default function Index({ projects, filters: initialFilters, statusCounts,
                                             ویرایش
                                         </DropdownItem>
                                         <DropdownItem
+                                            icon="bi-inboxes"
+                                            onClick={() => {
+                                                close();
+                                                proposalsViewer.show(project);
+                                            }}
+                                        >
+                                            پیشنهادها
+                                        </DropdownItem>
+                                        <DropdownItem
                                             icon="bi-trash3"
                                             danger
                                             onClick={() => {
@@ -304,7 +404,8 @@ export default function Index({ projects, filters: initialFilters, statusCounts,
             </TableCard>
 
             <ReviewForm modal={reviewer} routes={routes} />
-            <EditForm modal={editor} routes={routes} categories={categories} mentors={mentors} statuses={choices.statuses} budgetTypes={choices.budgetTypes} />
+            <EditForm modal={editor} routes={routes} categories={categories} statuses={choices.statuses} budgetTypes={choices.budgetTypes} />
+            <ProposalsModal modal={proposalsViewer} />
         </>
     );
 }

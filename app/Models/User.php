@@ -22,7 +22,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
- * Every person on the platform. Roles (super_admin, admin, employer, freelancer, mentor) come from spatie/laravel-permission.
+ * Every person on the platform. Roles (super_admin, admin, support, employer, freelancer, mentor) come from spatie/laravel-permission.
  */
 #[Fillable(['name', 'username', 'email', 'phone', 'password', 'avatar_path', 'bio'])]
 #[Hidden(['password', 'remember_token'])]
@@ -30,6 +30,13 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes;
+
+    /**
+     * Roles are shown next to every name in the panels, so they always come along.
+     *
+     * @var list<string>
+     */
+    protected $with = ['roles'];
 
     /**
      * Get the attributes that should be cast.
@@ -127,13 +134,21 @@ class User extends Authenticatable
     }
 
     /**
-     * Projects this user supervises as a mentor.
+     * Debit cards registered for payouts.
      *
-     * @return HasMany<Project, $this>
+     * @return HasMany<BankCard, $this>
      */
-    public function mentoredProjects(): HasMany
+    public function bankCards(): HasMany
     {
-        return $this->hasMany(Project::class, 'mentor_id');
+        return $this->hasMany(BankCard::class);
+    }
+
+    /**
+     * @return HasMany<WithdrawalRequest, $this>
+     */
+    public function withdrawalRequests(): HasMany
+    {
+        return $this->hasMany(WithdrawalRequest::class);
     }
 
     /**
@@ -300,17 +315,32 @@ class User extends Authenticatable
         return in_array($this->status, [UserStatus::Suspended, UserStatus::Banned], true);
     }
 
+    /**
+     * Role values in display order (staff first), e.g. ['admin'] or ['freelancer', 'employer'].
+     *
+     * @return list<string>
+     */
+    public function roleNames(): array
+    {
+        $held = $this->roles->pluck('name')->all();
+
+        return array_values(array_filter(
+            array_map(fn (RoleName $role): string => $role->value, RoleName::displayOrder()),
+            fn (string $role): bool => in_array($role, $held, true),
+        ));
+    }
+
     public function isSuperAdmin(): bool
     {
         return $this->hasRole(RoleName::SuperAdmin);
     }
 
     /**
-     * Super admins and admins, i.e. accounts managed from the "admins" page.
+     * Super admins, admins and support agents, i.e. accounts managed from the "admins" page.
      */
     public function isStaff(): bool
     {
-        return $this->hasAnyRole([RoleName::SuperAdmin, RoleName::Admin]);
+        return $this->hasAnyRole(RoleName::staff());
     }
 
     /**

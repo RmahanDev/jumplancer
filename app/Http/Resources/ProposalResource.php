@@ -23,6 +23,7 @@ class ProposalResource extends JsonResource
             'cover_letter' => $this->cover_letter,
             'proposed_price' => $this->proposed_price,
             'delivery_days' => $this->delivery_days,
+            'mentorship_requested' => $this->mentorship_requested,
             'status' => $this->status->value,
             'mentor_feedback' => $this->mentor_feedback,
             'created_at' => $this->created_at?->toIso8601String(),

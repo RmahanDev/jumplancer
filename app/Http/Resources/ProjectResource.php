@@ -35,13 +35,20 @@ class ProjectResource extends JsonResource
             'review_note' => $this->review_note,
             'created_at' => $this->created_at?->toIso8601String(),
             'category_id' => $this->category_id,
-            'mentor_id' => $this->mentor_id,
             'category' => $this->whenLoaded('category', fn () => [
                 'id' => $this->category->id,
                 'name' => $this->category->name,
             ]),
             'employer' => $this->whenLoaded('employer', fn () => UserResource::summary($this->employer)),
-            'mentor' => $this->whenLoaded('mentor', fn () => UserResource::summary($this->mentor)),
+            // The freelancer working on the project once someone was hired.
+            'freelancer' => $this->whenLoaded('currentContract', fn () => $this->currentContract ? UserResource::summary($this->currentContract->freelancer) : null),
+            'contract' => $this->whenLoaded('currentContract', fn () => $this->currentContract ? [
+                'id' => $this->currentContract->id,
+                'status' => $this->currentContract->status->value,
+                'amount' => $this->currentContract->amount,
+                'mentorship_included' => $this->currentContract->mentorship_included,
+            ] : null),
+            'proposals' => ProposalResource::collection($this->whenLoaded('proposals')),
             'skills' => $this->whenLoaded('skills', fn () => $this->skills->map(fn (Skill $skill): array => [
                 'id' => $skill->id,
                 'name' => $skill->name,

@@ -171,17 +171,6 @@ export default function Index({ users, filters: initialFilters, counts, roles, c
             render: (member) => <Person user={member} />,
         },
         {
-            key: 'roles',
-            label: 'نقش',
-            render: (member) => (
-                <div className="d-flex flex-wrap gap-1">
-                    {(member.roles ?? []).map((role) => (
-                        <StatusBadge key={role} group="role" value={role} />
-                    ))}
-                </div>
-            ),
-        },
-        {
             key: 'details',
             label: 'جزئیات',
             render: (member) => (

@@ -11,60 +11,104 @@ use App\Http\Resources\ViolationResource;
 use App\Models\FreelancerField;
 use App\Models\PortfolioMedia;
 use App\Models\Violation;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Review queues: portfolio files, contact-sharing violations and work fields waiting for an exam.
+ * The three review queues, each on its own page: work-field exams, contact-sharing
+ * violations and portfolio files. Every queue opens on what still needs a decision.
  */
 class ModerationController extends Controller
 {
-    public function __invoke(Request $request): Response
+    /**
+     * Old single-page address: open the portfolio queue.
+     */
+    public function index(): RedirectResponse
     {
-        $tab = $request->validate([
-            'tab' => ['nullable', Rule::in(['media', 'violations', 'fields'])],
-        ])['tab'] ?? 'media';
+        return to_route('admin.moderation.portfolio');
+    }
 
-        $perPage = config('jumplancer.per_page');
+    /**
+     * Work fields waiting for the exam result.
+     */
+    public function fields(Request $request): Response
+    {
+        $status = $this->status($request, array_column(FreelancerFieldStatus::cases(), 'value'), FreelancerFieldStatus::PendingExam->value);
 
-        return Inertia::render('Admin/Moderation/Index', [
-            'tab' => $tab,
-            'media' => $tab === 'media' ? PortfolioMediaResource::collection(
-                PortfolioMedia::with('portfolioItem.freelancer')
-                    ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [ModerationStatus::PendingReview->value])
-                    ->latest()
-                    ->latest('id')
-                    ->paginate($perPage)
-                    ->withQueryString(),
-            ) : null,
-            'violations' => $tab === 'violations' ? ViolationResource::collection(
-                Violation::with(['user', 'reviewer'])
-                    ->orderByRaw('CASE WHEN reviewed_at IS NULL THEN 0 ELSE 1 END')
-                    ->latest()
-                    ->latest('id')
-                    ->paginate($perPage)
-                    ->withQueryString(),
-            ) : null,
-            'fields' => $tab === 'fields' ? FreelancerFieldResource::collection(
+        return Inertia::render('Admin/Moderation/Fields', [
+            'fields' => FreelancerFieldResource::collection(
                 FreelancerField::with(['freelancer', 'category'])
-                    ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [FreelancerFieldStatus::PendingExam->value])
+                    ->when($status !== 'all', fn (Builder $query) => $query->where('status', $status))
                     ->latest()
                     ->latest('id')
-                    ->paginate($perPage)
+                    ->paginate(config('jumplancer.per_page'))
                     ->withQueryString(),
-            ) : null,
-            'counts' => [
-                'media' => PortfolioMedia::where('status', ModerationStatus::PendingReview)->count(),
-                'violations' => Violation::whereNull('reviewed_at')->count(),
-                'fields' => FreelancerField::where('status', FreelancerFieldStatus::PendingExam)->count(),
-            ],
-            'routes' => [
-                'media' => route('admin.portfolio-media.update', ':id'),
-                'violation' => route('admin.violations.update', ':id'),
-                'field' => route('admin.freelancer-fields.update', ':id'),
-            ],
+            ),
+            'filters' => ['status' => $status],
+            'counts' => FreelancerField::query()->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status'),
+            'routes' => ['update' => route('admin.freelancer-fields.update', ':id')],
         ]);
+    }
+
+    /**
+     * Phone numbers, e-mails and links caught in chats and proposals.
+     */
+    public function violations(Request $request): Response
+    {
+        $status = $this->status($request, ['unreviewed', 'reviewed'], 'unreviewed');
+
+        return Inertia::render('Admin/Moderation/Violations', [
+            'violations' => ViolationResource::collection(
+                Violation::with(['user', 'reviewer'])
+                    ->when($status === 'unreviewed', fn (Builder $query) => $query->whereNull('reviewed_at'))
+                    ->when($status === 'reviewed', fn (Builder $query) => $query->whereNotNull('reviewed_at'))
+                    ->latest()
+                    ->latest('id')
+                    ->paginate(config('jumplancer.per_page'))
+                    ->withQueryString(),
+            ),
+            'filters' => ['status' => $status],
+            'counts' => [
+                'unreviewed' => Violation::whereNull('reviewed_at')->count(),
+                'reviewed' => Violation::whereNotNull('reviewed_at')->count(),
+            ],
+            'routes' => ['update' => route('admin.violations.update', ':id')],
+        ]);
+    }
+
+    /**
+     * Portfolio files checked before employers can see them.
+     */
+    public function portfolio(Request $request): Response
+    {
+        $status = $this->status($request, array_column(ModerationStatus::cases(), 'value'), ModerationStatus::PendingReview->value);
+
+        return Inertia::render('Admin/Moderation/Portfolio', [
+            'media' => PortfolioMediaResource::collection(
+                PortfolioMedia::with('portfolioItem.freelancer')
+                    ->when($status !== 'all', fn (Builder $query) => $query->where('status', $status))
+                    ->latest()
+                    ->latest('id')
+                    ->paginate(config('jumplancer.per_page'))
+                    ->withQueryString(),
+            ),
+            'filters' => ['status' => $status],
+            'counts' => PortfolioMedia::query()->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status'),
+            'routes' => ['update' => route('admin.portfolio-media.update', ':id')],
+        ]);
+    }
+
+    /**
+     * @param  list<string>  $allowed
+     */
+    private function status(Request $request, array $allowed, string $default): string
+    {
+        return $request->validate([
+            'status' => ['nullable', Rule::in([...$allowed, 'all'])],
+        ])['status'] ?? $default;
     }
 }

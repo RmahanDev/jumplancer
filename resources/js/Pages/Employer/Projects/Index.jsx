@@ -141,7 +141,7 @@ function ProjectForm({ modal, categories, budgetTypes, canPublish, routes }) {
                         )}
                         <JalaliDateInput form={form} name="deadline" label="مهلت تحویل" min={tomorrow()} className="col-md-6" />
                         <div className="col-md-6 d-flex align-items-end">
-                            <Switch form={form} name="is_beginner_friendly" className="w-100" label="مناسب تازه‌کارها" description="یک منتور کنار فریلنسر تازه‌کار است." />
+                            <Switch form={form} name="is_beginner_friendly" className="w-100" label="مناسب تازه‌کارها" description="تازه‌کارها این پروژه را بالاتر می‌بینند؛ اگر بخواهند، خودشان در پیشنهاد منتور درخواست می‌کنند." />
                         </div>
                         <ChipPicker
                             form={form}
@@ -245,9 +245,9 @@ export default function Index({ projects, filters: initialFilters, statusCounts,
             render: (project) => (
                 <div className="d-flex flex-wrap gap-1">
                     <StatusBadge group="projectStatus" value={project.status} />
-                    {project.mentor && (
-                        <Badge tone="info" icon="bi-mortarboard">
-                            منتور: {project.mentor.name}
+                    {project.freelancer && (
+                        <Badge tone="success" icon="bi-person-check">
+                            فریلنسر: {project.freelancer.name}
                         </Badge>
                     )}
                 </div>

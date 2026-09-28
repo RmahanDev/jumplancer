@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 /**
  * A freelancer's bid on a project. One proposal per freelancer per project.
  */
-#[Fillable(['cover_letter', 'proposed_price', 'delivery_days', 'status', 'mentor_reviewed_by', 'mentor_feedback'])]
+#[Fillable(['cover_letter', 'proposed_price', 'delivery_days', 'mentorship_requested', 'status', 'mentor_reviewed_by', 'mentor_feedback'])]
 class Proposal extends Model
 {
     /** @use HasFactory<ProposalFactory> */
@@ -33,6 +33,7 @@ class Proposal extends Model
         return [
             'proposed_price' => 'integer',
             'delivery_days' => 'integer',
+            'mentorship_requested' => 'boolean',
             'status' => ProposalStatus::class,
         ];
     }
@@ -80,7 +81,7 @@ class Proposal extends Model
     }
 
     /**
-     * Proposals a mentor can coach: on projects they supervise, or sent by their active mentees.
+     * Proposals a mentor can coach: the ones sent by their active mentees.
      *
      * @param  Builder<self>  $query
      */
@@ -92,8 +93,6 @@ class Proposal extends Model
             ->where('status', MentorshipProgramStatus::Active)
             ->select('mentee_id');
 
-        $query->where(fn (Builder $proposals) => $proposals
-            ->whereHas('project', fn (Builder $projects) => $projects->where('mentor_id', $mentor->id))
-            ->orWhereIn('freelancer_id', $menteeIds));
+        $query->whereIn('freelancer_id', $menteeIds);
     }
 }

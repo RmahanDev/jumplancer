@@ -7,6 +7,7 @@ use App\Enums\MentorshipProgramStatus;
 use App\Enums\MentorshipSessionStatus;
 use App\Enums\ProposalStatus;
 use App\Enums\TicketStatus;
+use App\Models\Contract;
 use App\Models\LearningContent;
 use App\Models\MentorshipProgram;
 use App\Models\MentorshipSession;
@@ -122,11 +123,51 @@ class MentorFlowTest extends TestCase
         $this->post(route('mentor.programs.store'), $this->programPayload($queued))->assertSessionHasErrors('ticket_id');
         $this->post(route('mentor.programs.store'), $this->programPayload($closed))
             ->assertSessionHasErrors(['ticket_id' => 'این تیکت بسته شده است.']);
-        $this->post(route('mentor.programs.store'), [...$this->programPayload($ticket), 'track' => 'student'])->assertSessionHasErrors('track');
+        $employerTicket = Ticket::factory()->create(['requester_id' => $this->employer()->id, 'assigned_mentor_id' => $this->mentor->id, 'status' => TicketStatus::Assigned]);
+        $this->post(route('mentor.programs.store'), $this->programPayload($employerTicket))
+            ->assertSessionHasErrors(['ticket_id' => 'برنامه‌ی منتورینگ فقط برای فریلنسرهاست.']);
 
         // Juniors are past the free mentorships.
         $this->post(route('mentor.programs.store'), $this->programPayload($ticket))->assertSessionHasNoErrors();
         $this->assertFalse(MentorshipProgram::sole()->is_free_mentorship);
+    }
+
+    public function test_a_hires_mentoring_ticket_makes_the_mentor_the_contracts_mentor(): void
+    {
+        $employer = $this->employer(balance: 10_000_000);
+        $beginner = $this->freelancer(ExperienceLevel::Beginner);
+        $proposal = Proposal::factory()->create([
+            'project_id' => $this->openProject($employer)->id,
+            'freelancer_id' => $beginner->id,
+            'proposed_price' => 3_000_000,
+            'mentorship_requested' => true,
+        ]);
+        $this->actingAs($employer)->post(route('employer.contracts.store', $proposal), ['accept_deposit_terms' => true])->assertSessionHasNoErrors();
+        $contract = Contract::sole();
+        $ticket = Ticket::sole();
+
+        $this->actingAs($this->mentor);
+        $this->get(route('mentor.tickets.index'))->assertInertia(fn (Assert $page) => $page
+            ->where('tickets.data.0.id', $ticket->id)
+            ->where('tickets.data.0.contract.id', $contract->id)
+            ->where('tickets.data.0.requester.roles', ['freelancer']));
+
+        $this->put(route('mentor.tickets.update', $ticket), ['action' => 'take'])->assertSessionHasNoErrors();
+        $this->post(route('mentor.programs.store'), $this->programPayload($ticket))->assertSessionHasNoErrors();
+
+        $program = MentorshipProgram::sole();
+        $this->assertTrue($program->is_free_mentorship, 'decided when the contract was made');
+        $this->assertNull($program->price, 'paid through the contract fee');
+        $this->assertSame($this->mentor->id, $contract->fresh()->mentor_id);
+        $this->assertSame(1, $beginner->freelancerProfile()->first()->free_mentorships_used, 'counted once, at hire');
+    }
+
+    public function test_only_freelancers_send_mentoring_requests(): void
+    {
+        $this->actingAs($this->employer())->get(route('tickets.index'))->assertForbidden();
+        $this->post(route('tickets.store'), ['ticket_type' => 'technical', 'channel' => 'ticket', 'subject' => 'x', 'message' => 'یک سؤال درباره‌ی پروژه'])->assertForbidden();
+
+        $this->actingAs($this->freelancer())->get(route('tickets.index'))->assertOk();
     }
 
     public function test_the_mentor_updates_and_ends_their_programs(): void
@@ -196,17 +237,16 @@ class MentorFlowTest extends TestCase
         $this->assertModelExists($session);
     }
 
-    public function test_mentors_coach_proposals_on_supervised_projects_and_of_their_mentees(): void
+    public function test_mentors_coach_the_proposals_of_their_mentees(): void
     {
         $employer = $this->employer();
-        $supervised = $this->openProject($employer, ['mentor_id' => $this->mentor->id]);
-        $unsupervised = $this->openProject($employer);
+        $project = $this->openProject($employer);
         $mentee = $this->freelancer();
         $this->program($mentee);
 
-        $onSupervised = Proposal::factory()->create(['project_id' => $supervised->id, 'freelancer_id' => $this->freelancer()->id]);
-        $byMentee = Proposal::factory()->create(['project_id' => $unsupervised->id, 'freelancer_id' => $mentee->id]);
-        $stranger = Proposal::factory()->create(['project_id' => $unsupervised->id, 'freelancer_id' => $this->freelancer()->id]);
+        $onSupervised = Proposal::factory()->create(['project_id' => $project->id, 'freelancer_id' => $mentee->id]);
+        $byMentee = Proposal::factory()->create(['project_id' => $this->openProject($employer)->id, 'freelancer_id' => $mentee->id]);
+        $stranger = Proposal::factory()->create(['project_id' => $project->id, 'freelancer_id' => $this->freelancer()->id]);
 
         $this->get(route('mentor.reviews.index'))
             ->assertInertia(fn (Assert $page) => $page
@@ -309,7 +349,7 @@ class MentorFlowTest extends TestCase
      */
     private function programPayload(Ticket $ticket): array
     {
-        return ['ticket_id' => $ticket->id, 'track' => 'freelancer', 'goal' => 'گرفتن اولین پروژه تا پایان ماه', 'price' => 800_000];
+        return ['ticket_id' => $ticket->id, 'goal' => 'گرفتن اولین پروژه تا پایان ماه', 'price' => 800_000];
     }
 
     private function program(?User $mentee = null): MentorshipProgram

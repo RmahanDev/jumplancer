@@ -96,20 +96,6 @@
         white-space: nowrap;
     }
 
-    // The shortcut hint floats over the end of the label on hover, so it never takes
-    // room from the label (long Persian labels would otherwise be cut short).
-    .jl-nav-kbd {
-        position: absolute;
-        inset-inline-end: .55rem;
-        top: 50%;
-        padding-inline-start: .6rem;
-        background: inherit;
-        opacity: 0;
-        pointer-events: none;
-        transform: translateY(-50%);
-        transition: opacity .15s ease;
-    }
-
     &:hover {
         background: var(--jl-nav-hover);
         color: var(--jl-text);
@@ -117,10 +103,6 @@
 
         > .bi {
             transform: scale(1.08);
-        }
-
-        .jl-nav-kbd {
-            opacity: 1;
         }
     }
 
@@ -181,7 +163,6 @@
 
     .jl-sidebar-brand-text,
     .jl-nav-label,
-    .jl-nav-kbd,
     .jl-nav-group,
     .jl-sidebar-footer-text {
         display: none;
@@ -396,8 +377,7 @@
         padding: 0;
         justify-content: center;
 
-        span,
-        kbd {
+        span {
             display: none;
         }
     }

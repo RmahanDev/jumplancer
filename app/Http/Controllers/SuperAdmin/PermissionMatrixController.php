@@ -21,7 +21,7 @@ class PermissionMatrixController extends Controller
 {
     public function index(): Response
     {
-        $staff = User::role([RoleName::SuperAdmin, RoleName::Admin])
+        $staff = User::role(RoleName::staff())
             ->with(['roles', 'permissions'])
             ->orderBy('name')
             ->get();

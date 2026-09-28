@@ -75,10 +75,24 @@
         }
     }
 
+    // The row actions stay in view when a wide table scrolls sideways (a 1366px laptop, a tablet).
     .jl-row-actions {
+        position: sticky;
+        inset-inline-end: 0;
+        z-index: 1;
         width: 1%;
         white-space: nowrap;
         text-align: end;
+        background-color: var(--jl-surface);
+    }
+
+    thead .jl-row-actions {
+        z-index: 2;
+        background-color: var(--jl-surface-2);
+    }
+
+    tbody tr.is-highlight > td.jl-row-actions {
+        background: linear-gradient(rgba(var(--jl-accent-rgb), .06), rgba(var(--jl-accent-rgb), .06)), var(--jl-surface);
     }
 
     tr.is-muted td {

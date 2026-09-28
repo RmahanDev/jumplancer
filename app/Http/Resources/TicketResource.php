@@ -32,6 +32,13 @@ class TicketResource extends JsonResource
             'requester' => $this->whenLoaded('requester', fn () => UserResource::summary($this->requester)),
             'assigned_mentor' => $this->whenLoaded('assignedMentor', fn () => UserResource::summary($this->assignedMentor)),
             'programs_count' => $this->whenCounted('mentorshipPrograms'),
+            // Opened automatically when a freelancer who asked for a mentor was hired.
+            'contract' => $this->whenLoaded('contract', fn () => $this->contract ? [
+                'id' => $this->contract->id,
+                'amount' => $this->contract->amount,
+                'is_free_mentorship' => $this->contract->is_free_mentorship,
+                'project_title' => $this->contract->relationLoaded('project') ? $this->contract->project?->title : null,
+            ] : null),
         ];
     }
 }

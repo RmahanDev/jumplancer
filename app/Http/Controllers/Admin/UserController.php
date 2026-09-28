@@ -41,7 +41,7 @@ class UserController extends Controller
 
         $users = User::query()
             ->with(['roles', 'freelancerProfile', 'employerProfile', 'mentorProfile'])
-            ->whereDoesntHave('roles', fn (Builder $query) => $query->whereIn('name', [RoleName::SuperAdmin->value, RoleName::Admin->value]))
+            ->whereDoesntHave('roles', fn (Builder $query) => $query->whereIn('name', RoleName::staffValues()))
             ->when($filters['search'] ?? null, function (Builder $query, string $search): void {
                 $term = '%'.PersianText::normalize($search).'%';
                 $query->where(fn (Builder $query) => $query
@@ -67,7 +67,7 @@ class UserController extends Controller
                 'direction' => $filters['direction'] ?? 'desc',
             ],
             'counts' => [
-                'all' => User::whereDoesntHave('roles', fn (Builder $query) => $query->whereIn('name', [RoleName::SuperAdmin->value, RoleName::Admin->value]))->count(),
+                'all' => User::whereDoesntHave('roles', fn (Builder $query) => $query->whereIn('name', RoleName::staffValues()))->count(),
                 'suspended' => User::whereIn('status', [UserStatus::Suspended, UserStatus::Banned])->count(),
             ],
             'roles' => SaveMemberRequest::memberRoles(),

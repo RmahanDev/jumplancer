@@ -4,7 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
+use App\Enums\WithdrawalStatus;
+use App\Http\Resources\BankCardResource;
 use App\Http\Resources\TransactionResource;
+use App\Http\Resources\WithdrawalRequestResource;
+use App\Models\PlatformSetting;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -13,7 +17,7 @@ use Inertia\Response;
 class WalletController extends Controller
 {
     /**
-     * Balance, escrow and the ledger of the signed-in user's wallet.
+     * Balance, escrow, payout cards, withdrawal requests and the ledger of the signed-in user's wallet.
      */
     public function __invoke(Request $request): Response
     {
@@ -21,7 +25,8 @@ class WalletController extends Controller
             'type' => ['nullable', Rule::enum(TransactionType::class)],
         ]);
 
-        $wallet = $request->user()->ensureWallet();
+        $user = $request->user();
+        $wallet = $user->ensureWallet();
 
         $transactions = $wallet->transactions()
             ->when($filters['type'] ?? null, fn ($query, string $type) => $query->where('type', $type))
@@ -48,8 +53,21 @@ class WalletController extends Controller
                 'enabled' => (bool) config('jumplancer.payments.sandbox'),
                 'max' => config('jumplancer.payments.max_sandbox_deposit'),
             ],
+            'cards' => BankCardResource::collection($user->bankCards()->latest('id')->get()),
+            'withdrawals' => WithdrawalRequestResource::collection($user->withdrawalRequests()->latest()->latest('id')->limit(10)->get()),
+            'withdrawal' => [
+                'minimum' => (int) PlatformSetting::valueOf('withdrawal_min_amount', 50_000),
+                'pending' => (int) $user->withdrawalRequests()->where('status', WithdrawalStatus::Pending)->sum('amount'),
+                'account_name' => $user->name,
+                'account_phone' => $user->phone,
+            ],
             'routes' => [
                 'deposit' => route('wallet.deposits.store'),
+                'cardStore' => route('wallet.cards.store'),
+                'cardDestroy' => route('wallet.cards.destroy', ':id'),
+                'withdrawalStore' => route('wallet.withdrawals.store'),
+                'withdrawalDestroy' => route('wallet.withdrawals.destroy', ':id'),
+                'profile' => route('profile.edit'),
             ],
         ]);
     }

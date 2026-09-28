@@ -1,6 +1,6 @@
 import { Link, router } from '@inertiajs/react';
 import PageHeader from '../../Components/Panel/PageHeader';
-import { Badge, StatusBadge } from '../../Components/UI/Badge';
+import { Badge } from '../../Components/UI/Badge';
 import { Person } from '../../Components/UI/Avatar';
 import { confirm } from '../../Components/UI/ConfirmDialog';
 import StatCard from '../../Components/UI/StatCard';
@@ -152,7 +152,7 @@ export default function Dashboard({ environment, health, tables, staff, recentLo
                             <div>
                                 <h2>پیکربندی اجرا</h2>
                                 <p>
-                                    {formatNumber(staff.super_admins)} مدیر کل · {formatNumber(staff.admins)} ادمین
+                                    {formatNumber(staff.super_admins)} مدیر کل · {formatNumber(staff.admins)} ادمین · {formatNumber(staff.supports ?? 0)} پشتیبان
                                 </p>
                             </div>
                         </header>
@@ -186,11 +186,6 @@ export default function Dashboard({ environment, health, tables, staff, recentLo
                                         <li key={user.id}>
                                             <div className="flex-grow-1 min-w-0">
                                                 <Person user={user} />
-                                            </div>
-                                            <div className="d-none d-md-flex gap-1 flex-wrap">
-                                                {(user.roles ?? []).map((role) => (
-                                                    <StatusBadge key={role} group="role" value={role} />
-                                                ))}
                                             </div>
                                             <span className="text-muted small text-nowrap">{formatRelative(user.last_login_at)}</span>
                                             {!(user.roles ?? []).includes('super_admin') && (

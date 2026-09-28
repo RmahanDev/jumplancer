@@ -9,6 +9,7 @@ use App\Enums\CompanySize;
 use App\Enums\ContentAudience;
 use App\Enums\ContentPurpose;
 use App\Enums\ContractStatus;
+use App\Enums\DisputeOutcome;
 use App\Enums\DisputeStatus;
 use App\Enums\ExperienceLevel;
 use App\Enums\FreelancerFieldStatus;
@@ -33,6 +34,8 @@ use App\Enums\UserStatus;
 use App\Enums\ViolationAction;
 use App\Enums\ViolationSource;
 use App\Enums\ViolationType;
+use App\Enums\WithdrawalStatus;
+use App\Models\BankCard;
 use App\Models\Category;
 use App\Models\CategoryBudgetRange;
 use App\Models\Contract;
@@ -50,6 +53,8 @@ use App\Models\Skill;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\WalletLedger;
+use App\Support\BankCard as CardNumber;
+use App\Support\PersianText;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
@@ -103,6 +108,12 @@ class DemoDataSeeder extends Seeder
     /** @var array<string, Project> */
     private array $projects = [];
 
+    /** @var array<int, Ticket> mentoring tickets opened by hires, keyed by contract id */
+    private array $contractTickets = [];
+
+    /** @var array<string, Contract> */
+    private array $contracts = [];
+
     public function run(): void
     {
         if (User::where('username', 'employer')->exists()) {
@@ -124,6 +135,7 @@ class DemoDataSeeder extends Seeder
             $this->employers();
             $this->marketplace();
             $this->mentoring();
+            $this->withdrawals();
             $this->learningContent();
             $this->violations();
             $this->lastLogins();
@@ -141,11 +153,11 @@ class DemoDataSeeder extends Seeder
         $admin = $this->person('admin', 'سارا محمدی', RoleName::Admin, 150, '09120000101', 'مدیر عملیات بازارگاه جامپ‌لنسر.');
         $admin->syncPermissions(AdminPermission::values());
 
-        $support = $this->person('support', 'رضا کریمی', RoleName::Admin, 120, '09120000102', 'پشتیبانی کاربران و منتورینگ.');
-        $support->syncPermissions([AdminPermission::ManageUsers->value, AdminPermission::ManageMentoring->value, AdminPermission::ManageModeration->value]);
+        $support = $this->person('support', 'رضا کریمی', RoleName::Support, 120, '09120000102', 'پشتیبانی کاربران و منتورینگ.');
+        $support->syncPermissions([AdminPermission::ManageUsers->value, AdminPermission::ManageMentoring->value, AdminPermission::ManageModeration->value, AdminPermission::ManageWithdrawals->value]);
 
         $finance = $this->person('finance', 'نگار حسینی', RoleName::Admin, 100, '09120000103', 'امور مالی و قراردادها.');
-        $finance->syncPermissions([AdminPermission::ViewFinance->value, AdminPermission::ManageContracts->value]);
+        $finance->syncPermissions([AdminPermission::ViewFinance->value, AdminPermission::ManageContracts->value, AdminPermission::ManageWithdrawals->value]);
 
         $content = $this->person('content', 'امیر رضایی', RoleName::Admin, 70, '09120000104', 'تولید محتوای آموزشی.');
         $content->syncPermissions([AdminPermission::ManageContent->value, AdminPermission::ManageCatalog->value]);
@@ -327,9 +339,6 @@ class DemoDataSeeder extends Seeder
         $shop = $this->users['shop'];
         $startup = $this->users['startup'];
         $agency = $this->users['agency'];
-        $mentor = $this->users['mentor'];
-        $mentor2 = $this->users['mentor2'];
-
         // Wallet top-ups through the sandbox gateway.
         $this->at(158, fn () => $this->ledger->deposit($employer, 60_000_000));
         $this->at(118, fn () => $this->ledger->deposit($employer, 40_000_000));
@@ -355,7 +364,7 @@ class DemoDataSeeder extends Seeder
             'title' => 'طراحی سایت شرکتی با وردپرس',
             'description' => "سایت شرکتی پنج‌صفحه‌ای با وردپرس: صفحه‌ی اصلی، درباره‌ی ما، خدمات، نمونه‌کارها و تماس.\nقالب آماده‌ی سبک و فارسی ترجیح داده می‌شود و سایت باید روی موبایل عالی دیده شود.",
             'budget_min' => 15_000_000, 'budget_max' => 20_000_000, 'deadline_days' => 60,
-            'status' => ProjectStatus::InProgress, 'posting' => PostingType::Subscription, 'subscription' => $growth, 'beginner' => true, 'mentor' => $mentor,
+            'status' => ProjectStatus::InProgress, 'posting' => PostingType::Subscription, 'subscription' => $growth, 'beginner' => true,
             'skills' => ['wordpress', 'html-css'],
         ], daysAgo: 62);
 
@@ -363,7 +372,7 @@ class DemoDataSeeder extends Seeder
             'title' => 'بهینه‌سازی سرعت سایت و سئوی تکنیکال',
             'description' => "سایت فروشگاهی ما کند شده و در گوگل افت کرده است. می‌خواهیم Core Web Vitals بهتر شود، خطاهای سرچ کنسول رفع شود و ساختار لینک‌دهی داخلی اصلاح شود.\nگزارش قبل و بعد از کار لازم است.",
             'budget_min' => 6_000_000, 'budget_max' => 9_000_000, 'deadline_days' => 30,
-            'status' => ProjectStatus::Open, 'posting' => PostingType::Subscription, 'subscription' => $growth, 'beginner' => true, 'mentor' => $mentor,
+            'status' => ProjectStatus::Open, 'posting' => PostingType::Subscription, 'subscription' => $growth, 'beginner' => true,
             'skills' => ['technical-seo', 'google-analytics'],
         ], daysAgo: 12);
 
@@ -398,7 +407,7 @@ class DemoDataSeeder extends Seeder
             'title' => 'تولید ۲۰ مقاله‌ی سئوشده برای وبلاگ فروشگاه',
             'description' => "بیست مقاله‌ی ۱۲۰۰ کلمه‌ای درباره‌ی نگهداری لوازم خانگی، با رعایت اصول سئو و لحن صمیمی.\nکلمات کلیدی هر مقاله آماده است.",
             'budget_min' => 7_000_000, 'budget_max' => 9_000_000, 'deadline_days' => 40,
-            'status' => ProjectStatus::InProgress, 'posting' => PostingType::FreeFirst, 'beginner' => true, 'mentor' => $mentor2,
+            'status' => ProjectStatus::InProgress, 'posting' => PostingType::FreeFirst, 'beginner' => true,
             'skills' => ['seo-writing', 'copywriting'],
         ], daysAgo: 52);
         $this->freePostingUsed($shop, 1, 52);
@@ -407,7 +416,7 @@ class DemoDataSeeder extends Seeder
             'title' => 'مدیریت صفحه‌ی اینستاگرام فروشگاه برای یک ماه',
             'description' => 'تولید ۱۲ پست و ۲۰ استوری، پاسخ به دایرکت‌ها در ساعت کاری و گزارش هفتگی رشد صفحه.',
             'budget_min' => 5_000_000, 'budget_max' => 7_000_000, 'deadline_days' => 35,
-            'status' => ProjectStatus::Open, 'posting' => PostingType::FreeSecond, 'beginner' => true, 'mentor' => $mentor2,
+            'status' => ProjectStatus::Open, 'posting' => PostingType::FreeSecond, 'beginner' => true,
             'skills' => ['instagram-marketing'],
         ], daysAgo: 25);
         $this->freePostingUsed($shop, 2, 25);
@@ -425,7 +434,7 @@ class DemoDataSeeder extends Seeder
             'title' => 'طراحی رابط کاربری اپ رهنما در فیگما',
             'description' => 'طراحی ۲۵ صفحه‌ی اپ موبایل رهنما (جستجوی تور، جزئیات، پرداخت و پروفایل) به همراه دیزاین سیستم و پروتوتایپ قابل کلیک.',
             'budget_min' => 20_000_000, 'budget_max' => 25_000_000, 'deadline_days' => 50,
-            'status' => ProjectStatus::InProgress, 'posting' => PostingType::FreeFirst, 'beginner' => false, 'mentor' => $mentor2,
+            'status' => ProjectStatus::InProgress, 'posting' => PostingType::FreeFirst, 'beginner' => false,
             'skills' => ['figma', 'user-research'],
         ], daysAgo: 88);
         $this->freePostingUsed($startup, 1, 88);
@@ -436,7 +445,7 @@ class DemoDataSeeder extends Seeder
             'title' => 'صفحه‌ی فرود محصول با React',
             'description' => "یک لندینگ پیج واکنش‌گرا با React برای معرفی اپ رهنما: بخش ویژگی‌ها، نظرات کاربران، سؤالات متداول و فرم ثبت ایمیل.\nطرح فیگما آماده است.",
             'budget_min' => 8_000_000, 'budget_max' => 12_000_000, 'deadline_days' => 21,
-            'status' => ProjectStatus::Open, 'posting' => PostingType::Subscription, 'subscription' => $starter, 'beginner' => true, 'mentor' => $mentor,
+            'status' => ProjectStatus::Open, 'posting' => PostingType::Subscription, 'subscription' => $starter, 'beginner' => true,
             'skills' => ['react', 'javascript', 'html-css'],
         ], daysAgo: 8);
 
@@ -470,15 +479,15 @@ class DemoDataSeeder extends Seeder
         // --- proposals ---------------------------------------------------------------------------------
         $hired2 = $this->proposal($p2, 'hossein', 44_000_000, 40, ProposalStatus::Pending, 'سلام، من چهار سال است با لاراول پنل فروشگاهی می‌سازم. برای این پروژه ماژول محصولات، سفارش‌ها، گزارش‌ها و نقش‌ها را پیاده می‌کنم و هر هفته نسخه‌ی قابل تست تحویل می‌دهم.', 147);
 
-        $hired1 = $this->proposal($p1, 'freelancer', 17_500_000, 30, ProposalStatus::Pending, 'سلام، سایت شرکتی را با یک قالب سبک فارسی می‌سازم، سرعت و نمایش موبایل را بهینه می‌کنم و بعد از تحویل، کار با پنل وردپرس را به تیمتان آموزش می‌دهم.', 58, feedbackBy: 'mentor', feedback: 'پیشنهاد خوبی است. پیشنهاد می‌کنم زمان هر مرحله را هم بنویسی تا کارفرما با خیال راحت تصمیم بگیرد.');
+        $hired1 = $this->proposal($p1, 'freelancer', 17_500_000, 30, ProposalStatus::Pending, 'سلام، سایت شرکتی را با یک قالب سبک فارسی می‌سازم، سرعت و نمایش موبایل را بهینه می‌کنم و بعد از تحویل، کار با پنل وردپرس را به تیمتان آموزش می‌دهم.', 58, feedbackBy: 'mentor', feedback: 'پیشنهاد خوبی است. پیشنهاد می‌کنم زمان هر مرحله را هم بنویسی تا کارفرما با خیال راحت تصمیم بگیرد.', mentor: true);
         $this->proposal($p1, 'zahra', 19_000_000, 25, ProposalStatus::Pending, 'سلام، طراحی رابط را هم خودم انجام می‌دهم تا سایت یکدست و حرفه‌ای شود. نمونه‌کارهای مرتبط در پروفایلم هست.', 57);
 
-        $hired7 = $this->proposal($p7, 'fatemeh', 8_000_000, 35, ProposalStatus::Pending, 'سلام، مقاله‌ها را بعد از تحقیق کلمات کلیدی و با ساختار تیتربندی استاندارد می‌نویسم و هر هفته پنج مقاله تحویل می‌دهم.', 49, feedbackBy: 'mentor2', feedback: 'لحن محترمانه و برنامه‌ی تحویل روشنی داری. یک نمونه‌ی کوتاه ضمیمه کن تا اعتماد کارفرما بیشتر شود.');
+        $hired7 = $this->proposal($p7, 'fatemeh', 8_000_000, 35, ProposalStatus::Pending, 'سلام، مقاله‌ها را بعد از تحقیق کلمات کلیدی و با ساختار تیتربندی استاندارد می‌نویسم و هر هفته پنج مقاله تحویل می‌دهم.', 49, feedbackBy: 'mentor2', feedback: 'لحن محترمانه و برنامه‌ی تحویل روشنی داری. یک نمونه‌ی کوتاه ضمیمه کن تا اعتماد کارفرما بیشتر شود.', mentor: true);
 
-        $hired10 = $this->proposal($p10, 'zahra', 22_000_000, 45, ProposalStatus::Pending, 'سلام، دیزاین سیستم و ۲۵ صفحه را در سه مرحله تحویل می‌دهم و در پایان پروتوتایپ کامل در فیگما آماده است.', 85);
+        $hired10 = $this->proposal($p10, 'zahra', 22_000_000, 45, ProposalStatus::Pending, 'سلام، دیزاین سیستم و ۲۵ صفحه را در سه مرحله تحویل می‌دهم و در پایان پروتوتایپ کامل در فیگما آماده است.', 85, mentor: true);
 
         $this->proposal($p3, 'freelancer', 7_000_000, 20, ProposalStatus::Shortlisted, 'سلام، برای بهبود سرعت، تصاویر و کش را بهینه می‌کنم، اسکریپت‌های اضافه را حذف می‌کنم و خطاهای سرچ کنسول را با گزارش قبل و بعد رفع می‌کنم.', 10, feedbackBy: 'mentor', feedback: 'عالی! فقط ابزارهایی که برای اندازه‌گیری استفاده می‌کنی (PageSpeed و Search Console) را هم نام ببر.');
-        $this->proposal($p3, 'ali', 6_000_000, 25, ProposalStatus::Pending, 'سلام، در حال یادگیری سئوی تکنیکال هستم و با کمک منتور پروژه را مرحله‌به‌مرحله جلو می‌برم.', 9);
+        $this->proposal($p3, 'ali', 6_000_000, 25, ProposalStatus::Pending, 'سلام، در حال یادگیری سئوی تکنیکال هستم و با کمک منتور پروژه را مرحله‌به‌مرحله جلو می‌برم.', 9, mentor: true);
         $this->proposal($p3, 'narges', 8_500_000, 21, ProposalStatus::Pending, 'سلام، علاوه بر سئوی تکنیکال، برای شبکه‌های اجتماعی هم برنامه‌ی محتوا پیشنهاد می‌دهم.', 7);
 
         $this->proposal($p4, 'hossein', 50_000_000, 70, ProposalStatus::Pending, 'سلام، دو اپ فلاتر مشابه تحویل داده‌ام؛ معماری تمیز، تست و انتشار در استورها را هم انجام می‌دهم.', 4);
@@ -487,12 +496,12 @@ class DemoDataSeeder extends Seeder
         $this->proposal($p8, 'fatemeh', 5_500_000, 30, ProposalStatus::Rejected, 'سلام، کپشن‌ها و متن استوری‌ها را با لحن برند شما می‌نویسم.', 11);
 
         $this->proposal($p11, 'freelancer', 9_500_000, 18, ProposalStatus::Pending, 'سلام، لندینگ را با React و کامپوننت‌های قابل استفاده‌ی دوباره می‌سازم، در موبایل کاملاً واکنش‌گراست و فرم ایمیل را به سرویس شما وصل می‌کنم.', 6, feedbackBy: 'mentor', feedback: 'خوب نوشتی. زمان ۱۸ روز کمی فشرده است؛ اگر مطمئنی مشکلی نیست، در غیر این صورت ۲۱ روز بگذار.');
-        $this->proposal($p11, 'ali', 8_000_000, 21, ProposalStatus::Pending, 'سلام، از طرح فیگما کامپوننت‌ها را دقیق پیاده می‌کنم و کد را تمیز و مستند تحویل می‌دهم.', 5);
+        $this->proposal($p11, 'ali', 8_000_000, 21, ProposalStatus::Pending, 'سلام، از طرح فیگما کامپوننت‌ها را دقیق پیاده می‌کنم و کد را تمیز و مستند تحویل می‌دهم.', 5, mentor: true);
         $this->proposal($p11, 'hossein', 12_000_000, 14, ProposalStatus::Withdrawn, 'سلام، با تجربه‌ی لندینگ‌های مشابه، کار را سریع و باکیفیت تحویل می‌دهم.', 7);
 
         // --- contracts, milestones and escrow --------------------------------------------------------------
         // Arta × Hossein: completed, all paid, reviewed (fee 20%).
-        $c2 = $this->hire($hired2, mentorship: false, daysAgo: 145);
+        $c2 = $this->contracts['c2'] = $this->hire($hired2, daysAgo: 145);
         $this->milestone($c2, 'پیاده‌سازی مدیریت محصولات و موجودی', 15_000_000, fundedAgo: 144, submittedAgo: 126, releasedAgo: 120);
         $this->milestone($c2, 'سفارش‌ها و گزارش فروش', 17_000_000, fundedAgo: 119, submittedAgo: 104, releasedAgo: 100);
         $this->milestone($c2, 'نقش‌ها، تست نهایی و استقرار', 12_000_000, fundedAgo: 99, submittedAgo: 88, releasedAgo: 85);
@@ -505,19 +514,19 @@ class DemoDataSeeder extends Seeder
             'comment' => 'کد تمیز، ارتباط عالی و تحویل به‌موقع. حتماً دوباره با حسین کار می‌کنیم.',
         ]));
 
-        // Arta × Mohammad (beginner): mentor included for free, one step paid, one delivered, one planned.
-        $c1 = $this->hire($hired1, mentorship: true, daysAgo: 55);
+        // Arta × Mohammad (beginner, asked for a mentor: free): one step paid, one delivered, one planned.
+        $c1 = $this->contracts['c1'] = $this->hire($hired1, daysAgo: 55);
         $this->milestone($c1, 'طراحی قالب و صفحه‌ی اصلی', 6_000_000, fundedAgo: 54, submittedAgo: 42, releasedAgo: 40);
         $this->milestone($c1, 'صفحه‌های داخلی و فرم تماس', 7_000_000, fundedAgo: 39, submittedAgo: 2);
         $this->milestone($c1, 'انتشار، سئوی پایه و آموزش پنل', 4_500_000);
 
         // Niloofar × Fatemeh (beginner): first half paid, second half in escrow.
-        $c3 = $this->hire($hired7, mentorship: true, daysAgo: 46);
+        $c3 = $this->contracts['c3'] = $this->hire($hired7, daysAgo: 46);
         $this->milestone($c3, 'ده مقاله‌ی اول', 4_000_000, fundedAgo: 45, submittedAgo: 27, releasedAgo: 25);
         $this->milestone($c3, 'ده مقاله‌ی دوم', 4_000_000, fundedAgo: 24);
 
-        // Rahnama × Zahra (junior, paid mentorship 25%): first step in escrow, then a dispute.
-        $c4 = $this->hire($hired10, mentorship: true, daysAgo: 82);
+        // Rahnama × Zahra (junior, asked for a mentor: fee 25%): first step in escrow, then a dispute.
+        $c4 = $this->contracts['c4'] = $this->hire($hired10, daysAgo: 82);
         $this->milestone($c4, 'دیزاین سیستم و ۱۰ صفحه‌ی اول', 10_000_000, fundedAgo: 81);
         $this->milestone($c4, '۱۵ صفحه‌ی باقی‌مانده و پروتوتایپ', 12_000_000);
         $this->at(6, function () use ($c4): void {
@@ -534,6 +543,7 @@ class DemoDataSeeder extends Seeder
             'raised_by' => $employer->id,
             'reason' => 'تحویل مرحله‌ی دوم یک هفته دیرتر از زمان توافق‌شده انجام شد.',
             'status' => DisputeStatus::Resolved,
+            'outcome' => DisputeOutcome::Continue,
             'resolved_by' => $this->users['admin']->id,
             'resolution_note' => 'با توافق دو طرف، تأخیر به دلیل تغییر درخواست کارفرما بود و پرونده بسته شد.',
             'resolved_at' => now(),
@@ -551,7 +561,6 @@ class DemoDataSeeder extends Seeder
 
             $project = $employer->postedProjects()->create([
                 'category_id' => $this->categories[$category]->id,
-                'mentor_id' => isset($data['mentor']) ? $data['mentor']->id : null,
                 'title' => $data['title'],
                 'description' => $data['description'],
                 'budget_type' => $data['budget_type'] ?? BudgetType::Fixed,
@@ -589,13 +598,14 @@ class DemoDataSeeder extends Seeder
             : ['free_projects_used' => 2])->save();
     }
 
-    private function proposal(Project $project, string $freelancer, int $price, int $days, ProposalStatus $status, string $letter, int $daysAgo, ?string $feedbackBy = null, ?string $feedback = null): Proposal
+    private function proposal(Project $project, string $freelancer, int $price, int $days, ProposalStatus $status, string $letter, int $daysAgo, ?string $feedbackBy = null, ?string $feedback = null, bool $mentor = false): Proposal
     {
-        return $this->at($daysAgo, function () use ($project, $freelancer, $price, $days, $status, $letter, $feedbackBy, $feedback): Proposal {
+        return $this->at($daysAgo, function () use ($project, $freelancer, $price, $days, $status, $letter, $feedbackBy, $feedback, $mentor): Proposal {
             $proposal = $project->proposals()->make([
                 'cover_letter' => $letter,
                 'proposed_price' => $price,
                 'delivery_days' => $days,
+                'mentorship_requested' => $mentor,
                 'status' => $status,
                 'mentor_reviewed_by' => $feedbackBy ? $this->users[$feedbackBy]->id : null,
                 'mentor_feedback' => $feedback,
@@ -608,14 +618,17 @@ class DemoDataSeeder extends Seeder
     }
 
     /**
-     * Hire the proposal like Employer\ContractController does: beginners get their first mentorships free.
+     * Hire the proposal like Employer\ContractController does: the good-faith deposit is held, and
+     * when the freelancer asked for a mentor a ticket joins the mentors' queue (beginners' first
+     * mentorships are free).
      */
-    private function hire(Proposal $proposal, bool $mentorship, int $daysAgo): Contract
+    private function hire(Proposal $proposal, int $daysAgo): Contract
     {
-        return $this->at($daysAgo, function () use ($proposal, $mentorship): Contract {
+        return $this->at($daysAgo, function () use ($proposal): Contract {
             $project = Project::findOrFail($proposal->project_id);
             $freelancer = User::with('freelancerProfile')->findOrFail($proposal->freelancer_id);
             $profile = $freelancer->freelancerProfile;
+            $mentorship = $proposal->mentorship_requested;
             $free = $mentorship && $profile->level === ExperienceLevel::Beginner && $profile->free_mentorships_used < 2;
 
             if ($free) {
@@ -627,7 +640,6 @@ class DemoDataSeeder extends Seeder
                 'proposal_id' => $proposal->id,
                 'employer_id' => $project->employer_id,
                 'freelancer_id' => $freelancer->id,
-                'mentor_id' => $mentorship ? $project->mentor_id : null,
                 'amount' => $proposal->proposed_price,
                 'mentorship_included' => $mentorship,
                 'is_free_mentorship' => $free,
@@ -635,6 +647,20 @@ class DemoDataSeeder extends Seeder
                 'status' => ContractStatus::Active,
                 'started_at' => now(),
             ]);
+
+            $contract->setRelation('project', $project);
+            $this->ledger->holdHireDeposit($contract, 45);
+
+            if ($mentorship) {
+                $this->contractTickets[$contract->id] = $freelancer->tickets()->create([
+                    'contract_id' => $contract->id,
+                    'ticket_type' => TicketType::Technical,
+                    'channel' => TicketChannel::Ticket,
+                    'subject' => 'منتورینگ پروژه: '.$project->title,
+                    'message' => 'فریلنسر در پیشنهادش برای این پروژه منتور خواسته و استخدام شده است. مبلغ قرارداد: '.PersianText::number($contract->amount).' تومان، زمان تحویل: '.PersianText::number($proposal->delivery_days).' روز.',
+                    'status' => TicketStatus::Open,
+                ]);
+            }
 
             $proposal->update(['status' => ProposalStatus::Accepted]);
 
@@ -673,10 +699,71 @@ class DemoDataSeeder extends Seeder
 
     private function closeContract(Contract $contract, ContractStatus $status, int $daysAgo): void
     {
-        $this->at($daysAgo, fn () => $contract->update([
-            'status' => $status,
-            'completed_at' => $status === ContractStatus::Completed ? now() : null,
-        ]));
+        $this->at($daysAgo, function () use ($contract, $status): void {
+            if ($status === ContractStatus::Completed) {
+                $this->ledger->refundDeposit($contract);
+            }
+
+            $contract->update([
+                'status' => $status,
+                'completed_at' => $status === ContractStatus::Completed ? now() : null,
+            ]);
+        });
+    }
+
+    // ---------------------------------------------------------------- payouts
+
+    /**
+     * Payout cards and "pay my wallet to my card" requests: paid (with tracking number and receipt), pending and rejected.
+     */
+    private function withdrawals(): void
+    {
+        $finance = $this->users['finance'];
+        $support = $this->users['support'];
+
+        $hossein = $this->bankCard('hossein', '6104337912345672', 90);
+        $request = $this->at(80, fn () => $this->ledger->requestWithdrawal($this->users['hossein'], $hossein, 20_000_000), hour: 9);
+        $this->at(79, function () use ($request, $finance): void {
+            $path = 'withdrawal-receipts/demo-'.$request->id.'.png';
+            Storage::disk('local')->put($path, $this->mockupImage(2));
+            $this->ledger->markWithdrawalPaid($request, $finance, '140306281234', $path);
+        }, hour: 12);
+
+        $mohammad = $this->bankCard('freelancer', '6037991234567893', 30);
+        $this->at(2, fn () => $this->ledger->requestWithdrawal($this->users['freelancer'], $mohammad, 3_000_000), hour: 18);
+
+        $fatemeh = $this->bankCard('fatemeh', '6219861234567891', 20);
+        $rejected = $this->at(15, fn () => $this->ledger->requestWithdrawal($this->users['fatemeh'], $fatemeh, 1_000_000), hour: 20);
+        $this->at(14, fn () => $this->ledger->cancelWithdrawal($rejected, WithdrawalStatus::Rejected, $support, 'شماره‌ی شبای ثبت‌شده در بانک با این کارت یکی نیست؛ لطفاً کارت را دوباره بررسی و ثبت کن.'), hour: 11);
+    }
+
+    private function bankCard(string $username, string $number, int $daysAgo): BankCard
+    {
+        $number = CardNumber::isValid($number) ? $number : self::luhnFix($number);
+        $user = $this->users[$username];
+
+        return $this->at($daysAgo, fn (): BankCard => $user->bankCards()->create([
+            'card_number' => $number,
+            'holder_name' => $user->name,
+            'phone' => $user->phone,
+            'bank_name' => CardNumber::bankName($number),
+        ]), hour: 10);
+    }
+
+    /**
+     * Replace the last digit so the demo number passes the Luhn check.
+     */
+    private static function luhnFix(string $number): string
+    {
+        foreach (range(0, 9) as $digit) {
+            $candidate = substr($number, 0, 15).$digit;
+
+            if (CardNumber::isValid($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return $number;
     }
 
     // ---------------------------------------------------------------- mentoring
@@ -689,17 +776,21 @@ class DemoDataSeeder extends Seeder
         // Requests still waiting in the shared queue.
         $this->ticket('ali', TicketType::Technical, 'برای اولین پیشنهادم چه قیمتی بدهم؟', 'پروژه‌ی لندینگ React را دیده‌ام ولی نمی‌دانم قیمت پیشنهادی‌ام منطقی است یا نه. تجربه‌ی کار با مشتری ندارم.', TicketStatus::Open, null, 1);
         $this->ticket('narges', TicketType::Motivational, 'حسابم معلق شد و ناامید شده‌ام', 'نمی‌دانستم نباید شماره‌ام را در چت بفرستم. می‌خواهم بدانم چطور دوباره اعتماد کارفرماها را جلب کنم.', TicketStatus::Open, null, 0, TicketChannel::Phone, '09120000306');
-        $this->ticket('shop', TicketType::Technical, 'چطور مرحله‌های قرارداد را درست تعریف کنم؟', 'اولین بار است که قرارداد مرحله‌ای می‌بندم. مرحله‌ها را چطور تقسیم کنم که هم برای فریلنسر منصفانه باشد هم برای ما امن؟', TicketStatus::Open, null, 2);
+        $this->ticket('ali', TicketType::Technical, 'مرحله‌بندی اولین قرارداد', 'اگر استخدام شوم، کار را چطور به مرحله‌های منصفانه تقسیم کنم که کارفرما هم راضی باشد؟', TicketStatus::Open, null, 2);
 
         // Taken by mentors.
         $this->ticket('hossein', TicketType::Technical, 'مسیر رسیدن به سطح ارشد', 'می‌خواهم معماری نرم‌افزار و مدیریت تیم را جدی‌تر یاد بگیرم. از کجا شروع کنم؟', TicketStatus::Assigned, $mentor, 3);
 
-        $t1 = $this->ticket('freelancer', TicketType::Technical, 'خطای ۴۱۹ در فرم تماس لاراول', 'فرم تماس در سایت تمرینی‌ام بعد از چند دقیقه خطای 419 می‌دهد. توکن CSRF را گذاشته‌ام ولی باز هم خطا می‌گیرم.', TicketStatus::InProgress, $mentor, 24);
-        $t2 = $this->ticket('fatemeh', TicketType::Motivational, 'ترس از تحویل اولین پروژه', 'قرارداد اولم را گرفته‌ام ولی می‌ترسم کیفیت مقاله‌ها کافی نباشد و کارفرما ناراضی شود.', TicketStatus::InProgress, $mentor2, 44);
-        $t3 = $this->ticket('zahra', TicketType::Technical, 'بهترین روش تحویل فایل‌های فیگما', 'فایل فیگما را چطور مرتب کنم که برنامه‌نویس راحت پیاده‌سازی کند؟', TicketStatus::Closed, $mentor, 70);
+        $this->ticket('freelancer', TicketType::Technical, 'خطای ۴۱۹ در فرم تماس لاراول', 'فرم تماس در سایت تمرینی‌ام بعد از چند دقیقه خطای 419 می‌دهد. توکن CSRF را گذاشته‌ام ولی باز هم خطا می‌گیرم.', TicketStatus::Assigned, $mentor, 4);
+        $t3 = $this->ticket('zahra', TicketType::Technical, 'بهترین روش تحویل فایل‌های فیگما', 'فایل فیگما را چطور مرتب کنم که برنامه‌نویس راحت پیاده‌سازی کند؟', TicketStatus::Closed, $mentor, 120);
 
-        // Programs created from those tickets, with their sessions.
-        $program1 = $this->program($t1, $mentor, 'freelancer', 'رفع خطاهای رایج لاراول و تحویل موفق اولین قرارداد وردپرسی.', MentorshipProgramStatus::Active, free: true, daysAgo: 23);
+        // Tickets opened by hires (the freelancer asked for a mentor on the proposal).
+        $t1 = $this->takeContractTicket('c1', $mentor, TicketStatus::InProgress, 53);
+        $t2 = $this->takeContractTicket('c3', $mentor2, TicketStatus::InProgress, 45);
+        $this->takeContractTicket('c4', $mentor, TicketStatus::Assigned, 80);
+
+        // Programs created from those tickets, with their sessions (a hire's program becomes the contract's mentor).
+        $program1 = $this->program($t1, $mentor, 'freelancer', 'همراهی در قرارداد سایت شرکتی آرتا: رفع خطاهای رایج و تحویل موفق مرحله‌ها.', MentorshipProgramStatus::Active, free: true, daysAgo: 23);
         $this->session($program1, -20, MentorshipSessionType::Technical, MentorshipSessionStatus::Done, 5, 'علت خطای ۴۱۹ منقضی شدن نشست بود؛ مدیریت session و کش را مرور کردیم.');
         $this->session($program1, -9, MentorshipSessionType::Review, MentorshipSessionStatus::Done, 4, 'کد صفحه‌های داخلی را بازبینی کردیم؛ دو پیشنهاد برای ساختار قالب دادم.');
         $this->session($program1, -2, MentorshipSessionType::Motivational, MentorshipSessionStatus::Missed, null, 'محمد به جلسه نرسید؛ جلسه‌ی بعد را هماهنگ کردیم.');
@@ -712,7 +803,7 @@ class DemoDataSeeder extends Seeder
         $this->session($program2, -12, MentorshipSessionType::Technical, MentorshipSessionStatus::Done, 4, 'اصول لینک‌سازی داخلی را تمرین کردیم.');
         $this->session($program2, 1, MentorshipSessionType::Motivational, MentorshipSessionStatus::Scheduled, null, null, 'https://meet.jit.si/jumplancer-mentor-2');
 
-        $program3 = $this->program($t3, $mentor, 'zahra', 'نظم‌دهی فایل‌های فیگما برای تحویل به تیم فنی.', MentorshipProgramStatus::Completed, free: false, daysAgo: 69, price: 900_000);
+        $program3 = $this->program($t3, $mentor, 'zahra', 'نظم‌دهی فایل‌های فیگما برای تحویل به تیم فنی.', MentorshipProgramStatus::Completed, free: false, daysAgo: 119, price: 900_000);
         $this->session($program3, -66, MentorshipSessionType::Technical, MentorshipSessionStatus::Done, 5, 'نام‌گذاری لایه‌ها و کامپوننت‌ها را مرتب کردیم.');
         $this->session($program3, -59, MentorshipSessionType::Review, MentorshipSessionStatus::Done, 5, 'فایل نهایی آماده‌ی تحویل بود.');
         $program3->update(['ended_at' => $this->now->subDays(58)]);
@@ -733,10 +824,27 @@ class DemoDataSeeder extends Seeder
         ]), hour: 14);
     }
 
+    /**
+     * A mentor takes the ticket that a hire opened.
+     */
+    private function takeContractTicket(string $contract, User $mentor, TicketStatus $status, int $daysAgo): Ticket
+    {
+        $ticket = $this->contractTickets[$this->contracts[$contract]->id];
+
+        $this->at($daysAgo, fn () => $ticket->update(['assigned_mentor_id' => $mentor->id, 'status' => $status]), hour: 11);
+
+        return $ticket;
+    }
+
     private function program(Ticket $ticket, User $mentor, string $mentee, string $goal, MentorshipProgramStatus $status, bool $free, int $daysAgo, ?int $price = null): MentorshipProgram
     {
-        if ($free) {
+        // A hire's free mentorship was already counted when the contract was made.
+        if ($free && $ticket->contract_id === null) {
             $this->users[$mentee]->freelancerProfile()->first()->increment('free_mentorships_used');
+        }
+
+        if ($ticket->contract_id !== null) {
+            Contract::whereKey($ticket->contract_id)->update(['mentor_id' => $mentor->id]);
         }
 
         return $this->at($daysAgo, fn (): MentorshipProgram => MentorshipProgram::create([
@@ -747,7 +855,7 @@ class DemoDataSeeder extends Seeder
             'goal' => $goal,
             'status' => $status,
             'is_free_mentorship' => $free,
-            'price' => $free ? null : $price,
+            'price' => $free || $ticket->contract_id !== null ? null : $price,
             'started_at' => now(),
         ]), hour: 16);
     }
@@ -1038,7 +1146,17 @@ class DemoDataSeeder extends Seeder
      */
     private function at(int $daysAgo, callable $callback, int $hour = 10): mixed
     {
-        Carbon::setTestNow($this->now->setTimezone(self::LOCAL_TIMEZONE)->subDays($daysAgo)->setTime($hour, 7 * $daysAgo % 60)->utc());
+        $moment = $this->now->setTimezone(self::LOCAL_TIMEZONE)->subDays($daysAgo)->setTime($hour, 7 * $daysAgo % 60);
+
+        // Today's later hours have not happened yet: move them just before now (keeping their order),
+        // with room for the "+1 hour" / "+5 hours" steps some records take, so nothing is in the future.
+        $latest = $this->now->subHours(6);
+
+        if ($moment->greaterThan($latest)) {
+            $moment = $latest->subMinutes(24 - $hour);
+        }
+
+        Carbon::setTestNow($moment->utc());
 
         try {
             return $callback();

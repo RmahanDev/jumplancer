@@ -8,6 +8,7 @@ import PasswordStrength from '../../Components/PasswordStrength';
 import PageHeader from '../../Components/Panel/PageHeader';
 import Avatar from '../../Components/UI/Avatar';
 import { Badge, StatusBadge } from '../../Components/UI/Badge';
+import UserName from '../../Components/UI/UserName';
 import Meter from '../../Components/UI/Meter';
 import { useAuthUser } from '../../hooks/usePanel';
 import { useModal } from '../../hooks/useModal';
@@ -200,12 +201,9 @@ export default function Profile({ account, profiles, options: choices, routes })
                             <div className="d-flex align-items-center gap-3 mb-3">
                                 <Avatar user={user} size="lg" />
                                 <div className="min-w-0 flex-grow-1">
-                                    <h2 className="h5 fw-bold mb-1 text-truncate">{account.name}</h2>
-                                    <div className="d-flex flex-wrap gap-1">
-                                        {(user?.roles ?? []).map((role) => (
-                                            <StatusBadge key={role} group="role" value={role} />
-                                        ))}
-                                    </div>
+                                    <h2 className="h5 fw-bold mb-1">
+                                        <UserName user={{ name: account.name, roles: user?.roles ?? [] }} />
+                                    </h2>
                                 </div>
                                 <button type="button" className="btn btn-primary btn-sm" onClick={() => accountEditor.show(null)}>
                                     <i className="bi bi-pencil" /> ویرایش

@@ -66,7 +66,7 @@ class HandleInertiaRequests extends Middleware
             'username' => $user->username,
             'email' => $user->email,
             'avatar' => $user->avatar_path ? Storage::disk('public')->url($user->avatar_path) : null,
-            'roles' => $user->getRoleNames()->values()->all(),
+            'roles' => $user->roleNames(),
             'permissions' => $user->staffPermissions(),
             'isSuperAdmin' => $user->isSuperAdmin(),
         ];

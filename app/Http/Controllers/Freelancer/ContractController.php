@@ -20,7 +20,7 @@ class ContractController extends Controller
         $status = $request->validate(['status' => ['nullable', Rule::enum(ContractStatus::class)]])['status'] ?? null;
 
         $contracts = $request->user()->freelancerContracts()
-            ->with(['project', 'employer', 'mentor', 'milestones' => fn ($query) => $query->orderBy('sort_order')->orderBy('id')])
+            ->with(['project', 'employer', 'mentor', 'openDispute', 'mentorshipTicket', 'milestones' => fn ($query) => $query->orderBy('sort_order')->orderBy('id')])
             ->when($status, fn ($query, string $status) => $query->where('status', $status))
             ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [ContractStatus::Active->value])
             ->latest()
@@ -33,6 +33,7 @@ class ContractController extends Controller
             'filters' => ['status' => $status],
             'routes' => [
                 'submit' => route('freelancer.milestones.submit', ':id'),
+                'dispute' => route('contracts.disputes.store', ':id'),
             ],
         ]);
     }

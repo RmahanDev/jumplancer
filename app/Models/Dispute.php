@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DisputeOutcome;
 use App\Enums\DisputeStatus;
 use Database\Factories\DisputeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Conflict between employer and freelancer, handled by admins.
  */
-#[Fillable(['contract_id', 'raised_by', 'reason', 'status', 'resolved_by', 'resolution_note', 'resolved_at'])]
+#[Fillable(['contract_id', 'raised_by', 'reason', 'status', 'outcome', 'resolved_by', 'resolution_note', 'resolved_at'])]
 class Dispute extends Model
 {
     /** @use HasFactory<DisputeFactory> */
@@ -27,6 +28,7 @@ class Dispute extends Model
     {
         return [
             'status' => DisputeStatus::class,
+            'outcome' => DisputeOutcome::class,
             'resolved_at' => 'datetime',
         ];
     }

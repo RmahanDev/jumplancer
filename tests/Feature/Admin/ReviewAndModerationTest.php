@@ -4,8 +4,10 @@ namespace Tests\Feature\Admin;
 
 use App\Enums\AdminPermission;
 use App\Enums\ContractStatus;
+use App\Enums\DisputeOutcome;
 use App\Enums\DisputeStatus;
 use App\Enums\FreelancerFieldStatus;
+use App\Enums\MilestoneStatus;
 use App\Enums\ModerationStatus;
 use App\Enums\ProjectStatus;
 use App\Enums\TicketStatus;
@@ -21,6 +23,7 @@ use App\Models\Proposal;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\Violation;
+use App\Services\WalletLedger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -76,7 +79,6 @@ class ReviewAndModerationTest extends TestCase
     public function test_staff_edit_and_soft_delete_projects(): void
     {
         $project = $this->openProject($this->employer());
-        $mentor = $this->mentor();
 
         $this->put(route('admin.projects.update', $project), [
             'title' => 'عنوان اصلاح‌شده',
@@ -87,15 +89,9 @@ class ReviewAndModerationTest extends TestCase
             'budget_min' => 1_000_000,
             'budget_max' => 2_000_000,
             'is_beginner_friendly' => true,
-            'mentor_id' => $mentor->id,
         ])->assertSessionHasNoErrors();
 
-        $this->assertSame($mentor->id, $project->fresh()->mentor_id);
-
-        $this->put(route('admin.projects.update', $project), [
-            'title' => 'x', 'description' => 'y', 'category_id' => $project->category_id, 'status' => 'open', 'budget_type' => 'fixed',
-            'mentor_id' => $this->freelancer()->id,
-        ])->assertSessionHasErrors(['mentor_id' => 'کاربر انتخاب‌شده منتور نیست.']);
+        $this->assertSame('عنوان اصلاح‌شده', $project->fresh()->title);
 
         // Like employers, staff keep projects in a sub-category.
         $this->put(route('admin.projects.update', $project), [
@@ -104,6 +100,36 @@ class ReviewAndModerationTest extends TestCase
 
         $this->delete(route('admin.projects.destroy', $project))->assertSessionHasNoErrors();
         $this->assertSoftDeleted($project);
+    }
+
+    public function test_the_projects_page_shows_the_hired_freelancer_and_every_proposal(): void
+    {
+        $contract = $this->contract();
+        $project = $contract->project()->first();
+        $other = Proposal::factory()->create([
+            'project_id' => $project->id,
+            'freelancer_id' => $this->freelancer()->id,
+            'cover_letter' => 'سلام، این پروژه را با منتور جلو می‌برم.',
+            'proposed_price' => 4_200_000,
+            'delivery_days' => 12,
+            'mentorship_requested' => true,
+            'status' => 'rejected',
+        ]);
+        Proposal::factory()->create(['project_id' => $project->id, 'freelancer_id' => $this->freelancer()->id, 'status' => 'draft']);
+
+        $this->get(route('admin.projects.index'))->assertInertia(fn (Assert $page) => $page
+            ->missing('mentors')
+            ->where('projects.data.0.freelancer.id', $contract->freelancer_id)
+            ->where('projects.data.0.freelancer.roles', ['freelancer'])
+            ->where('projects.data.0.employer.roles', ['employer'])
+            ->where('projects.data.0.contract.id', $contract->id)
+            ->has('projects.data.0.proposals', 2)
+            ->where('projects.data.0.proposals.0.id', $contract->proposal_id)
+            ->where('projects.data.0.proposals.1.id', $other->id)
+            ->where('projects.data.0.proposals.1.cover_letter', 'سلام، این پروژه را با منتور جلو می‌برم.')
+            ->where('projects.data.0.proposals.1.proposed_price', 4_200_000)
+            ->where('projects.data.0.proposals.1.delivery_days', 12)
+            ->where('projects.data.0.proposals.1.mentorship_requested', true));
     }
 
     public function test_closing_a_dispute_puts_the_contract_back_to_work(): void
@@ -118,14 +144,117 @@ class ReviewAndModerationTest extends TestCase
         $this->put(route('admin.disputes.update', $dispute), ['status' => 'under_review'])->assertSessionHasNoErrors();
         $this->assertSame(DisputeStatus::UnderReview, $dispute->fresh()->status);
 
-        $this->put(route('admin.disputes.update', $dispute), ['status' => 'resolved'])->assertSessionHasErrors('resolution_note');
+        $this->put(route('admin.disputes.update', $dispute), ['status' => 'resolved'])->assertSessionHasErrors(['resolution_note', 'outcome']);
         $this->put(route('admin.disputes.update', $dispute), ['status' => 'open'])->assertSessionHasErrors('status');
 
-        $this->put(route('admin.disputes.update', $dispute), ['status' => 'resolved', 'resolution_note' => 'مبلغ مرحله آزاد شود.'])->assertSessionHasNoErrors();
+        $this->put(route('admin.disputes.update', $dispute), ['status' => 'resolved', 'outcome' => 'continue', 'resolution_note' => 'دو طرف توافق کردند.'])->assertSessionHasNoErrors();
 
         $this->assertSame(DisputeStatus::Resolved, $dispute->fresh()->status);
+        $this->assertSame(DisputeOutcome::Continue, $dispute->fresh()->outcome);
         $this->assertSame($this->admin->id, $dispute->fresh()->resolved_by);
         $this->assertSame(ContractStatus::Active, $contract->fresh()->status);
+
+        $this->put(route('admin.disputes.update', $dispute), ['status' => 'rejected', 'resolution_note' => 'دوباره'])
+            ->assertSessionHasErrors(['status' => 'این اختلاف قبلاً بسته شده است.']);
+    }
+
+    public function test_the_expert_can_return_everything_held_to_the_employer(): void
+    {
+        [$contract, $employer, $freelancer] = $this->heldContract();
+        $dispute = $this->raiseDispute($contract, $employer);
+
+        $this->put(route('admin.disputes.update', $dispute), [
+            'status' => 'resolved',
+            'outcome' => 'refund_employer',
+            'resolution_note' => 'کار فریلنسر پایین‌تر از حد انتظار بود.',
+        ])->assertSessionHasNoErrors()->assertInertiaFlash('toast.message', 'اختلاف بسته شد و ۵٬۰۰۰٬۰۰۰ تومان به کارفرما برگشت.');
+
+        // 45% deposit (4,500,000): 3,000,000 went into the funded milestone, 1,500,000 is unspent; plus 500,000 more from the wallet.
+        $wallet = $employer->wallet()->first();
+        $this->assertSame([10_000_000, 0], [$wallet->balance, $wallet->held_balance]);
+        $this->assertSame(0, $freelancer->wallet()->first()->balance);
+        $this->assertSame(MilestoneStatus::Refunded, $contract->milestones()->first()->status);
+        $this->assertSame(ContractStatus::Cancelled, $contract->fresh()->status);
+        $this->assertSame(ProjectStatus::Cancelled, $contract->project()->first()->status);
+        $this->assertSame(0, $contract->fresh()->deposit_balance);
+    }
+
+    public function test_the_expert_can_pay_everything_held_to_the_freelancer(): void
+    {
+        [$contract, $employer, $freelancer] = $this->heldContract();
+        $dispute = $this->raiseDispute($contract, $freelancer);
+
+        $this->put(route('admin.disputes.update', $dispute), [
+            'status' => 'resolved',
+            'outcome' => 'pay_freelancer',
+            'resolution_note' => 'کار درست تحویل شده و کارفرما بدون دلیل پرداخت نمی‌کند.',
+        ])->assertSessionHasNoErrors()->assertInertiaFlash('toast.message', 'اختلاف بسته شد و ۵٬۰۰۰٬۰۰۰ تومان به فریلنسر پرداخت شد.');
+
+        $wallet = $employer->wallet()->first();
+        $this->assertSame([5_000_000, 0], [$wallet->balance, $wallet->held_balance]);
+        $this->assertSame(4_000_000, $freelancer->wallet()->first()->balance, '5,000,000 minus the 20% platform fee');
+        $this->assertSame(MilestoneStatus::Released, $contract->milestones()->first()->status);
+        $this->assertSame(ContractStatus::Completed, $contract->fresh()->status);
+        $this->assertSame(ProjectStatus::Completed, $contract->project()->first()->status);
+    }
+
+    public function test_both_sides_can_ask_an_expert_but_outsiders_cannot(): void
+    {
+        [$contract, $employer, $freelancer] = $this->heldContract();
+
+        $this->actingAs($this->freelancer())
+            ->post(route('contracts.disputes.store', $contract), ['reason' => str_repeat('دلیل کافی و روشن ', 3)])
+            ->assertNotFound();
+
+        $this->actingAs($freelancer)
+            ->post(route('contracts.disputes.store', $contract), ['reason' => 'کوتاه'])
+            ->assertSessionHasErrors('reason');
+
+        $this->actingAs($freelancer)
+            ->post(route('contracts.disputes.store', $contract), ['reason' => 'کار طبق شرح تحویل شده ولی کارفرما مرحله را تأیید نمی‌کند.'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(ContractStatus::Disputed, $contract->fresh()->status);
+        $this->assertSame(DisputeStatus::Open, Dispute::sole()->status);
+
+        $this->actingAs($employer)
+            ->post(route('contracts.disputes.store', $contract), ['reason' => 'یک اختلاف دیگر برای همین قرارداد ثبت می‌کنم.'])
+            ->assertSessionHasErrors(['reason' => 'فقط برای قرارداد فعال می‌توانی درخواست بررسی بدهی.']);
+    }
+
+    /**
+     * A hired contract (price 10,000,000, deposit 4,500,000) with a 5,000,000 milestone funded.
+     *
+     * @return array{0: Contract, 1: User, 2: User}
+     */
+    private function heldContract(): array
+    {
+        $employer = $this->employer(balance: 10_000_000);
+        $freelancer = $this->freelancer();
+        $proposal = Proposal::factory()->create([
+            'project_id' => $this->openProject($employer)->id,
+            'freelancer_id' => $freelancer->id,
+            'proposed_price' => 10_000_000,
+        ]);
+
+        $this->actingAs($employer)->post(route('employer.contracts.store', $proposal), ['accept_deposit_terms' => true])->assertSessionHasNoErrors();
+        $contract = Contract::sole();
+
+        $milestone = $contract->milestones()->create(['title' => 'مرحله‌ی اول', 'amount' => 5_000_000, 'status' => MilestoneStatus::Pending, 'sort_order' => 1]);
+        app(WalletLedger::class)->fundMilestone($milestone);
+        $this->actingAs($this->admin);
+
+        return [$contract->fresh(), $employer, $freelancer];
+    }
+
+    private function raiseDispute(Contract $contract, User $by): Dispute
+    {
+        $this->actingAs($by)
+            ->post(route('contracts.disputes.store', $contract), ['reason' => 'طرف مقابل به تعهدش در این قرارداد عمل نکرده است.'])
+            ->assertSessionHasNoErrors();
+        $this->actingAs($this->admin);
+
+        return Dispute::sole();
     }
 
     public function test_tickets_are_assigned_to_mentors_only(): void
@@ -155,13 +284,37 @@ class ReviewAndModerationTest extends TestCase
         $member->forceFill(['status' => UserStatus::Suspended, 'suspension_reason' => 'phone'])->save();
         $violation = Violation::factory()->create(['user_id' => $member->id]);
 
-        $this->get(route('admin.moderation.index', ['tab' => 'violations']))
-            ->assertInertia(fn (Assert $page) => $page->has('violations.data', 1)->where('counts.violations', 1)->where('violations.data.0.user.status', 'suspended'));
+        $this->get(route('admin.moderation.violations'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Moderation/Violations')
+                ->where('filters.status', 'unreviewed')
+                ->has('violations.data', 1)
+                ->where('counts.unreviewed', 1)
+                ->where('violations.data.0.user.status', 'suspended'));
 
         $this->put(route('admin.violations.update', $violation), ['lift_suspension' => true])->assertSessionHasNoErrors();
 
         $this->assertNotNull($violation->fresh()->reviewed_at);
         $this->assertFalse($member->fresh()->isSuspended());
+
+        $this->get(route('admin.moderation.violations'))->assertInertia(fn (Assert $page) => $page->has('violations.data', 0));
+        $this->get(route('admin.moderation.violations', ['status' => 'reviewed']))->assertInertia(fn (Assert $page) => $page->has('violations.data', 1)->where('counts.reviewed', 1));
+    }
+
+    public function test_each_review_queue_has_its_own_page(): void
+    {
+        $this->get(route('admin.moderation.index'))->assertRedirect(route('admin.moderation.portfolio'));
+
+        $this->get(route('admin.moderation.fields'))
+            ->assertInertia(fn (Assert $page) => $page->component('Admin/Moderation/Fields')->where('filters.status', 'pending_exam')->has('fields.data'));
+        $this->get(route('admin.moderation.portfolio'))
+            ->assertInertia(fn (Assert $page) => $page->component('Admin/Moderation/Portfolio')->where('filters.status', 'pending_review')->has('media.data'));
+        $this->get(route('admin.moderation.portfolio', ['status' => 'bogus']))->assertSessionHasErrors('status');
+
+        $this->get(route('admin.dashboard'))->assertInertia(fn (Assert $page) => $page
+            ->where('panel.navigation', fn ($items) => collect($items)->where('group', 'تخلفات و بازبینی')->pluck('key')->all() === [
+                'admin.moderation.fields', 'admin.moderation.violations', 'admin.moderation.portfolio',
+            ]));
     }
 
     public function test_portfolio_files_are_approved_or_rejected_with_a_reason(): void

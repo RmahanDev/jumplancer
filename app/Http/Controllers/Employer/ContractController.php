@@ -7,15 +7,21 @@ use App\Enums\ExperienceLevel;
 use App\Enums\MilestoneStatus;
 use App\Enums\ProjectStatus;
 use App\Enums\ProposalStatus;
+use App\Enums\TicketChannel;
+use App\Enums\TicketStatus;
+use App\Enums\TicketType;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ContractResource;
 use App\Models\Contract;
 use App\Models\PlatformSetting;
 use App\Models\Proposal;
+use App\Services\WalletLedger;
+use App\Support\PersianText;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -23,15 +29,21 @@ use Inertia\Response;
 
 /**
  * Hiring (proposal to contract) and running contracts with escrowed milestones.
+ *
+ * Hiring holds a good-faith deposit (platform setting "hire_deposit_percent", 45% by default)
+ * from the employer's wallet. Milestones spend it first; an employer cannot walk away while
+ * money is held, a dispute is opened instead and an expert decides where the money goes.
  */
 class ContractController extends Controller
 {
     /**
-     * Base platform fee, and the fee when mentoring support is included (v2 rules).
+     * Base platform fee, and the fee when the freelancer asked for a mentor (v2 rules).
      */
-    private const FEE_PERCENT = 20;
+    public const FEE_PERCENT = 20;
 
-    private const FEE_WITH_MENTORSHIP_PERCENT = 25;
+    public const FEE_WITH_MENTORSHIP_PERCENT = 25;
+
+    public function __construct(private readonly WalletLedger $ledger) {}
 
     public function index(Request $request): Response
     {
@@ -39,7 +51,7 @@ class ContractController extends Controller
         $status = $request->validate(['status' => ['nullable', Rule::enum(ContractStatus::class)]])['status'] ?? null;
 
         $contracts = $employer->employerContracts()
-            ->with(['project', 'freelancer', 'mentor', 'milestones' => fn ($query) => $query->orderBy('sort_order')->orderBy('id')])
+            ->with(['project', 'freelancer', 'mentor', 'openDispute', 'milestones' => fn ($query) => $query->orderBy('sort_order')->orderBy('id')])
             ->withExists(['reviews as reviewed_by_viewer' => fn ($query) => $query->where('reviewer_id', $employer->id)])
             ->when($status, fn ($query, string $status) => $query->where('status', $status))
             ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [ContractStatus::Active->value])
@@ -57,23 +69,27 @@ class ContractController extends Controller
                 'milestoneStore' => route('employer.milestones.store', ':id'),
                 'milestoneUpdate' => route('employer.milestones.update', ':id'),
                 'review' => route('employer.reviews.store', ':id'),
+                'dispute' => route('contracts.disputes.store', ':id'),
                 'wallet' => route('wallet.show'),
             ],
         ]);
     }
 
     /**
-     * Hire: turn a proposal into a contract and close the project to other proposals.
+     * Hire: hold the good-faith deposit, turn the proposal into a contract and close the project
+     * to other proposals. When the freelancer asked for a mentor, a ticket joins the mentors' queue.
      */
     public function store(Request $request, Proposal $proposal): RedirectResponse
     {
         Gate::authorize('respond', $proposal);
 
-        $validated = $request->validate([
-            'mentorship_included' => ['boolean'],
+        $request->validate([
+            'accept_deposit_terms' => ['accepted'],
+        ], [
+            'accept_deposit_terms.accepted' => __('Confirm the good-faith deposit terms to hire.'),
         ]);
 
-        $contract = DB::transaction(function () use ($proposal, $validated): Contract {
+        $contract = DB::transaction(function () use ($proposal): Contract {
             $proposal = Proposal::with(['project', 'freelancer.freelancerProfile'])->lockForUpdate()->findOrFail($proposal->id);
             $project = $proposal->project;
 
@@ -81,7 +97,8 @@ class ContractController extends Controller
                 throw ValidationException::withMessages(['proposal' => __('This proposal can no longer be accepted.')]);
             }
 
-            $withMentorship = (bool) ($validated['mentorship_included'] ?? false);
+            // Mentoring is the freelancer's choice, made on the proposal.
+            $withMentorship = $proposal->mentorship_requested;
             $isFreeMentorship = $withMentorship && $this->useFreeMentorship($proposal);
 
             $contract = Contract::create([
@@ -89,7 +106,6 @@ class ContractController extends Controller
                 'proposal_id' => $proposal->id,
                 'employer_id' => $project->employer_id,
                 'freelancer_id' => $proposal->freelancer_id,
-                'mentor_id' => $withMentorship ? $project->mentor_id : null,
                 'amount' => $proposal->proposed_price,
                 'mentorship_included' => $withMentorship,
                 'is_free_mentorship' => $isFreeMentorship,
@@ -97,6 +113,13 @@ class ContractController extends Controller
                 'status' => ContractStatus::Active,
                 'started_at' => now(),
             ]);
+
+            $contract->setRelation('project', $project);
+            $this->ledger->holdHireDeposit($contract, PlatformSetting::hireDepositPercent());
+
+            if ($withMentorship) {
+                $this->queueMentorshipTicket($contract, $proposal);
+            }
 
             $proposal->update(['status' => ProposalStatus::Accepted]);
             $project->proposals()
@@ -108,15 +131,21 @@ class ContractController extends Controller
             return $contract;
         });
 
-        $this->toast(__('You hired :name. Add the first milestone and fund it to get started.', [
-            'name' => $contract->freelancer->name,
-        ]));
+        $this->toast($contract->deposit_amount > 0
+            ? __('You hired :name. :deposit Toman is held as the good-faith deposit; the first milestones are paid from it.', [
+                'name' => $contract->freelancer->name,
+                'deposit' => PersianText::number($contract->deposit_amount),
+            ])
+            : __('You hired :name. Add the first milestone and fund it to get started.', [
+                'name' => $contract->freelancer->name,
+            ]));
 
         return to_route('employer.contracts.index');
     }
 
     /**
-     * Complete or cancel a contract. Money still in escrow must be released first.
+     * Complete or cancel a contract. Funded milestones must be settled first; the unused deposit
+     * returns on completion. Cancelling while money is held needs an expert: open a dispute.
      */
     public function update(Request $request, Contract $contract): RedirectResponse
     {
@@ -132,13 +161,19 @@ class ContractController extends Controller
 
         $inEscrow = $contract->milestones()->whereIn('status', [MilestoneStatus::Funded, MilestoneStatus::Submitted, MilestoneStatus::Approved])->exists();
 
-        if ($inEscrow) {
+        $status = ContractStatus::from($validated['status']);
+
+        if ($inEscrow && $status === ContractStatus::Completed) {
             throw ValidationException::withMessages(['status' => __('Release or settle the funded milestones before closing the contract.')]);
         }
 
-        $status = ContractStatus::from($validated['status']);
+        if ($status === ContractStatus::Cancelled && ($inEscrow || $contract->deposit_balance > 0)) {
+            throw ValidationException::withMessages(['status' => __('The good-faith deposit is held until an expert decides. Open a dispute and explain why you want to cancel.')]);
+        }
 
-        DB::transaction(function () use ($contract, $status): void {
+        $refunded = DB::transaction(function () use ($contract, $status): int {
+            $refunded = $status === ContractStatus::Completed ? $this->ledger->refundDeposit($contract) : 0;
+
             $contract->update([
                 'status' => $status,
                 'completed_at' => $status === ContractStatus::Completed ? now() : null,
@@ -147,13 +182,37 @@ class ContractController extends Controller
             $contract->project->update([
                 'status' => $status === ContractStatus::Completed ? ProjectStatus::Completed : ProjectStatus::Cancelled,
             ]);
+
+            return $refunded;
         });
 
-        $this->toast($status === ContractStatus::Completed
-            ? __('The contract is complete. Leave a review for the freelancer!')
-            : __('The contract was cancelled.'), $status === ContractStatus::Completed ? 'success' : 'info');
+        $message = match (true) {
+            $status === ContractStatus::Cancelled => __('The contract was cancelled.'),
+            $refunded > 0 => __('The contract is complete and :amount Toman of unused deposit is back in your wallet. Leave a review for the freelancer!', ['amount' => PersianText::number($refunded)]),
+            default => __('The contract is complete. Leave a review for the freelancer!'),
+        };
+
+        $this->toast($message, $status === ContractStatus::Completed ? 'success' : 'info');
 
         return back();
+    }
+
+    /**
+     * The freelancer asked for a mentor: open a ticket in the mentors' queue, linked to the contract.
+     */
+    private function queueMentorshipTicket(Contract $contract, Proposal $proposal): void
+    {
+        $proposal->freelancer->tickets()->create([
+            'contract_id' => $contract->id,
+            'ticket_type' => TicketType::Technical,
+            'channel' => TicketChannel::Ticket,
+            'subject' => Str::limit(__('Mentoring for project: :title', ['title' => $contract->project->title]), 200, ''),
+            'message' => __('The freelancer asked for a mentor on this project. Contract amount: :amount Toman, delivery in :days days.', [
+                'amount' => PersianText::number($contract->amount),
+                'days' => PersianText::number($proposal->delivery_days),
+            ]),
+            'status' => TicketStatus::Open,
+        ]);
     }
 
     /**
@@ -162,7 +221,7 @@ class ContractController extends Controller
     private function useFreeMentorship(Proposal $proposal): bool
     {
         $profile = $proposal->freelancer->freelancerProfile;
-        $allowance = PlatformSetting::firstWhere('setting_key', 'beginner_free_mentorships')?->typed_value ?? 2;
+        $allowance = (int) PlatformSetting::valueOf('beginner_free_mentorships', 2);
 
         if ($profile === null || $profile->level !== ExperienceLevel::Beginner || $profile->free_mentorships_used >= $allowance) {
             return false;

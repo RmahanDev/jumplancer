@@ -55,6 +55,11 @@ class PlatformSettingController extends Controller
             $rules[] = Rule::in($choices);
         }
 
+        // Percentages stay between 1 and 100.
+        if (str_ends_with($platformSetting->setting_key, '_percent')) {
+            array_push($rules, 'min:1', 'max:100');
+        }
+
         $validated = $request->validate(['setting_value' => $rules]);
         $value = $validated['setting_value'];
 

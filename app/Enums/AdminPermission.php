@@ -20,6 +20,17 @@ enum AdminPermission: string
     case ManageMentoring = 'mentoring.manage';
     case ManageContent = 'content.manage';
     case ManageSettings = 'settings.manage';
+    case ManageWithdrawals = 'withdrawals.manage';
+
+    /**
+     * What a new support agent can do until someone with "admins.manage" changes it.
+     *
+     * @return list<self>
+     */
+    public static function supportDefaults(): array
+    {
+        return [self::ManageMentoring, self::ManageWithdrawals];
+    }
 
     /**
      * @return list<string>

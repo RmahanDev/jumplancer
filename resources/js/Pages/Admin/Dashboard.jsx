@@ -227,7 +227,7 @@ export default function Dashboard({ stats, charts, recent }) {
                                 {recent.users.map((member) => (
                                     <li key={member.id}>
                                         <div className="min-w-0 flex-grow-1">
-                                            <Person user={member} meta={member.roles?.map((role) => label('role', role)).join('، ')} />
+                                            <Person user={member} />
                                         </div>
                                         <span className="small text-muted text-nowrap">{formatRelative(member.created_at)}</span>
                                     </li>

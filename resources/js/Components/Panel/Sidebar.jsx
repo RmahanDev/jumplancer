@@ -1,10 +1,10 @@
 import { Link } from '@inertiajs/react';
 import { Fragment } from 'react';
 import { formatNumber } from '../../lib/format';
-import { label, PANELS } from '../../lib/labels';
+import { PANELS } from '../../lib/labels';
 import Logo from '../Logo';
 import Avatar from '../UI/Avatar';
-import Kbd from '../UI/Kbd';
+import { RoleTag } from '../UI/UserName';
 
 /**
  * Navigation of the current dashboard (items come from App\Support\PanelNavigation).
@@ -43,9 +43,7 @@ export default function Sidebar({ panel, user, collapsed = false }) {
                                     <span className="jl-nav-badge" aria-label={`${formatNumber(item.badge)} مورد در انتظار`}>
                                         {formatNumber(item.badge)}
                                     </span>
-                                ) : (
-                                    item.shortcut && <Kbd combo={item.shortcut} className="jl-nav-kbd" />
-                                )}
+                                ) : null}
                             </Link>
                         </Fragment>
                     );
@@ -63,7 +61,11 @@ export default function Sidebar({ panel, user, collapsed = false }) {
                         <Avatar user={user} size="sm" />
                         <span className="jl-sidebar-footer-text min-w-0 d-flex flex-column lh-sm">
                             <span className="fw-semibold text-truncate">{user.name}</span>
-                            <small className="text-muted text-truncate">{user.roles.map((role) => label('role', role)).join('، ')}</small>
+                            <span className="d-flex flex-wrap gap-1 mt-1">
+                                {user.roles.slice(0, 2).map((role) => (
+                                    <RoleTag key={role} role={role} />
+                                ))}
+                            </span>
                         </span>
                     </Link>
                 </div>

@@ -6,6 +6,7 @@ use App\Enums\ExperienceLevel;
 use App\Enums\MentorshipProgramStatus;
 use App\Enums\MentorshipSessionType;
 use App\Enums\MentorshipTrack;
+use App\Enums\RoleName;
 use App\Enums\TicketStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\MentorshipProgramResource;
@@ -47,7 +48,6 @@ class ProgramController extends Controller
             'options' => [
                 'statuses' => array_column(MentorshipProgramStatus::cases(), 'value'),
                 'sessionTypes' => array_column(MentorshipSessionType::cases(), 'value'),
-                'tracks' => array_column(MentorshipTrack::cases(), 'value'),
             ],
             'routes' => [
                 'update' => route('mentor.programs.update', ':id'),
@@ -59,35 +59,44 @@ class ProgramController extends Controller
     }
 
     /**
-     * Start a program from a ticket the mentor took. The first mentorships of a beginner
-     * freelancer are free (platform setting "beginner_free_mentorships").
+     * Start a program from a ticket the mentor took. Mentoring is for freelancers only. The first
+     * mentorships of a beginner freelancer are free (platform setting "beginner_free_mentorships");
+     * for a ticket opened by a hire, that was already decided on the contract, and the mentor
+     * becomes the contract's mentor.
      */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'ticket_id' => ['required', 'integer', Rule::exists('tickets', 'id')->where('assigned_mentor_id', $request->user()->id)],
-            'track' => ['required', Rule::enum(MentorshipTrack::class)],
             'goal' => ['required', 'string', 'max:2000'],
             'price' => ['nullable', 'integer', 'min:0', 'max:1000000000'],
         ]);
 
         $program = DB::transaction(function () use ($request, $validated): MentorshipProgram {
-            $ticket = Ticket::with('requester.freelancerProfile')->lockForUpdate()->findOrFail($validated['ticket_id']);
+            $ticket = Ticket::with(['requester.freelancerProfile', 'contract'])->lockForUpdate()->findOrFail($validated['ticket_id']);
 
             if ($ticket->status === TicketStatus::Closed) {
                 throw ValidationException::withMessages(['ticket_id' => __('This ticket is closed.')]);
             }
 
-            $isFree = $this->grantFreeMentorship($ticket->requester);
+            if (! $ticket->requester->hasRole(RoleName::Freelancer)) {
+                throw ValidationException::withMessages(['ticket_id' => __('Mentoring programs are only for freelancers.')]);
+            }
+
+            $contract = $ticket->contract;
+            $isFree = $contract !== null ? $contract->is_free_mentorship : $this->grantFreeMentorship($ticket->requester);
+
+            $contract?->update(['mentor_id' => $request->user()->id]);
 
             $program = $request->user()->mentorshipsAsMentor()->create([
                 'ticket_id' => $ticket->id,
                 'mentee_id' => $ticket->requester_id,
-                'track' => $validated['track'],
+                'track' => MentorshipTrack::Freelancer,
                 'goal' => $validated['goal'],
                 'status' => MentorshipProgramStatus::Active,
                 'is_free_mentorship' => $isFree,
-                'price' => $isFree ? null : ($validated['price'] ?? null),
+                // A hire's mentoring is paid through the contract's higher platform fee.
+                'price' => $isFree || $contract !== null ? null : ($validated['price'] ?? null),
                 'started_at' => now(),
             ]);
 
@@ -132,7 +141,7 @@ class ProgramController extends Controller
     private function grantFreeMentorship(User $mentee): bool
     {
         $profile = $mentee->freelancerProfile;
-        $allowance = PlatformSetting::firstWhere('setting_key', 'beginner_free_mentorships')?->typed_value ?? 2;
+        $allowance = (int) PlatformSetting::valueOf('beginner_free_mentorships', 2);
 
         if ($profile === null || $profile->level !== ExperienceLevel::Beginner || $profile->free_mentorships_used >= $allowance) {
             return false;

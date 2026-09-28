@@ -3,7 +3,7 @@ import Field, { useBinding } from './Field';
 import { formatBytes, formatNumber } from '../../lib/format';
 
 /** Drag-and-drop file picker. The form value is an array of File objects. */
-export default function FileInput({ form = null, name, label, value, onChange, error, hint = null, accept = null, max = 5, className = '' }) {
+export default function FileInput({ form = null, name, label, value, onChange, error, hint = null, accept = null, max = 5, note = null, className = '' }) {
     const id = useId();
     const inputRef = useRef(null);
     const [dragging, setDragging] = useState(false);
@@ -35,8 +35,8 @@ export default function FileInput({ form = null, name, label, value, onChange, e
                 }}
             >
                 <i className="bi bi-cloud-arrow-up" />
-                <strong className="small">فایل‌ها را اینجا رها کن یا کلیک کن</strong>
-                <span className="small text-muted">حداکثر {formatNumber(max)} فایل تصویر یا PDF، هر کدام تا ۵ مگابایت</span>
+                <strong className="small">{max > 1 ? 'فایل‌ها را اینجا رها کن یا کلیک کن' : 'فایل را اینجا رها کن یا کلیک کن'}</strong>
+                <span className="small text-muted">{note ?? `حداکثر ${formatNumber(max)} فایل تصویر یا PDF، هر کدام تا ۵ مگابایت`}</span>
                 <input
                     ref={inputRef}
                     id={id}
