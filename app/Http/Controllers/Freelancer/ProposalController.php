@@ -50,6 +50,7 @@ class ProposalController extends Controller
 
         $proposal = new Proposal([
             ...$request->safe()->only(['cover_letter', 'proposed_price', 'delivery_days']),
+            'mentorship_requested' => $request->boolean('mentorship_requested'),
             'status' => ProposalStatus::Pending,
         ]);
         $proposal->project()->associate($project);
@@ -72,7 +73,7 @@ class ProposalController extends Controller
             throw ValidationException::withMessages(['cover_letter' => __('Only pending proposals can be edited.')]);
         }
 
-        $proposal->update($request->safe()->only(['cover_letter', 'proposed_price', 'delivery_days']));
+        $proposal->update([...$request->safe()->only(['cover_letter', 'proposed_price', 'delivery_days']), 'mentorship_requested' => $request->boolean('mentorship_requested')]);
 
         $this->toast(__('Your proposal was updated.'));
 

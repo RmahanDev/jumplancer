@@ -1,4 +1,5 @@
-import { ContractProgress, MilestoneList } from '../../../Components/Domain/Contract';
+import { ContractProgress, DepositNote, MilestoneList, OpenDisputeNote } from '../../../Components/Domain/Contract';
+import DisputeForm from '../../../Components/Domain/DisputeForm';
 import PageHeader from '../../../Components/Panel/PageHeader';
 import Pagination from '../../../Components/Panel/Pagination';
 import { Person } from '../../../Components/UI/Avatar';
@@ -7,6 +8,7 @@ import { confirm } from '../../../Components/UI/ConfirmDialog';
 import EmptyState from '../../../Components/UI/EmptyState';
 import Tabs from '../../../Components/UI/Tabs';
 import { useFilters } from '../../../hooks/useFilters';
+import { useModal } from '../../../hooks/useModal';
 import { post } from '../../../lib/actions';
 import { formatDate, formatMoney, formatNumber } from '../../../lib/format';
 import { label, options } from '../../../lib/labels';
@@ -14,6 +16,7 @@ import { fillRoute } from '../../../lib/text';
 
 export default function Index({ contracts, filters: initialFilters, routes }) {
     const filters = useFilters(initialFilters);
+    const disputer = useModal();
 
     const deliver = async (milestone) => {
         const ok = await confirm({
@@ -56,7 +59,7 @@ export default function Index({ contracts, filters: initialFilters, routes }) {
                                 <div className="d-flex flex-wrap gap-1 align-items-center">
                                     {contract.mentorship_included && (
                                         <Badge tone="info" icon="bi-mortarboard">
-                                            {contract.is_free_mentorship ? 'منتورینگ رایگان' : 'با منتورینگ'}
+                                            {contract.is_free_mentorship ? 'منتورینگ رایگان' : 'با منتور'}
                                         </Badge>
                                     )}
                                     <StatusBadge group="contractStatus" value={contract.status} />
@@ -66,16 +69,26 @@ export default function Index({ contracts, filters: initialFilters, routes }) {
                                 <div className="row g-3 mb-3">
                                     <div className="col-md-4">
                                         <div className="small text-muted mb-1">کارفرما</div>
-                                        <Person user={contract.employer} />
+                                        <Person user={contract.employer} role="employer" />
                                     </div>
                                     <div className="col-md-4">
-                                        <div className="small text-muted mb-1">منتور</div>
-                                        {contract.mentor ? <Person user={contract.mentor} /> : <span className="text-muted">—</span>}
+                                        <div className="small text-muted mb-1">منتور من</div>
+                                        {contract.mentor ? (
+                                            <Person user={contract.mentor} role="mentor" />
+                                        ) : (
+                                            <span className="text-muted small">
+                                                {contract.mentorship_included ? 'درخواستت در صف منتورهاست؛ به‌زودی یک منتور همراهت می‌شود.' : 'در پیشنهاد، منتور نخواستی.'}
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="col-md-4">
                                         <div className="small text-muted mb-1">دریافتی تا امروز</div>
                                         <ContractProgress contract={contract} />
                                     </div>
+                                </div>
+                                <div className="d-grid gap-2 mb-3">
+                                    <OpenDisputeNote dispute={contract.open_dispute} />
+                                    <DepositNote contract={contract} viewer="freelancer" />
                                 </div>
                                 <MilestoneList
                                     milestones={contract.milestones}
@@ -89,14 +102,23 @@ export default function Index({ contracts, filters: initialFilters, routes }) {
                                         ) : null
                                     }
                                 />
-                                <div className="small text-muted mt-2">
-                                    مبلغ کل: {formatMoney(contract.amount)} · وضعیت: {label('contractStatus', contract.status)}
+                                <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
+                                    <span className="small text-muted">
+                                        مبلغ کل: {formatMoney(contract.amount)} · وضعیت: {label('contractStatus', contract.status)}
+                                    </span>
+                                    {contract.status === 'active' && (
+                                        <button type="button" className="btn btn-ghost btn-sm text-danger" onClick={() => disputer.show({ contract })}>
+                                            <i className="bi bi-shield-exclamation" /> درخواست بررسی کارشناس
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </article>
                     ))}
                 </div>
             )}
+
+            <DisputeForm modal={disputer} url={routes.dispute} viewer="freelancer" />
 
             {contracts.meta?.last_page > 1 && (
                 <div className="jl-card mt-3">

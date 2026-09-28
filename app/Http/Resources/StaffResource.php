@@ -8,7 +8,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
 
 /**
- * An admin or super admin as shown on the admins page and the permission matrix.
+ * An admin, support agent or super admin as shown on the admins page and the permission matrix.
  *
  * @mixin User
  */
@@ -30,6 +30,8 @@ class StaffResource extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone,
             'status' => $this->status->value,
+            'role' => $this->roleNames()[0] ?? null,
+            'roles' => $this->roleNames(),
             'is_super_admin' => $this->isSuperAdmin(),
             'is_root' => $this->isRootSuperAdmin(),
             'is_you' => $this->resource->is($request->user()),

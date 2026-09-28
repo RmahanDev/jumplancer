@@ -3,10 +3,9 @@
 namespace App\Enums;
 
 /**
- * Which side of the market a mentorship program serves.
+ * Who a mentorship program serves. Mentoring is only for freelancers.
  */
 enum MentorshipTrack: string
 {
     case Freelancer = 'freelancer';
-    case Employer = 'employer';
 }

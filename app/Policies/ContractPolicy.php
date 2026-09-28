@@ -15,4 +15,14 @@ class ContractPolicy
     {
         return $contract->employer_id === $user->id ? Response::allow() : Response::denyAsNotFound();
     }
+
+    /**
+     * Either side of the contract can ask an expert to step in.
+     */
+    public function dispute(User $user, Contract $contract): Response
+    {
+        return in_array($user->id, [$contract->employer_id, $contract->freelancer_id], true)
+            ? Response::allow()
+            : Response::denyAsNotFound();
+    }
 }

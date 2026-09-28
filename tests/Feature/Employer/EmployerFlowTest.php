@@ -10,14 +10,19 @@ use App\Enums\PostingType;
 use App\Enums\ProjectStatus;
 use App\Enums\ProposalStatus;
 use App\Enums\SubscriptionStatus;
+use App\Enums\TicketStatus;
+use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Models\CategoryBudgetRange;
 use App\Models\Contract;
 use App\Models\Milestone;
 use App\Models\Plan;
+use App\Models\PlatformSetting;
 use App\Models\Project;
 use App\Models\Proposal;
+use App\Models\Ticket;
 use App\Models\User;
+use App\Models\Wallet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\BuildsMarketplace;
@@ -211,52 +216,123 @@ class EmployerFlowTest extends TestCase
             ->assertSessionHasErrors(['status' => 'درباره‌ی این پیشنهاد قبلاً تصمیم گرفته شده است.']);
     }
 
-    public function test_hiring_creates_the_contract_and_closes_the_project(): void
+    public function test_hiring_holds_the_deposit_creates_the_contract_and_closes_the_project(): void
     {
-        $employer = $this->employer();
-        $project = $this->openProject($employer, ['mentor_id' => $this->mentor()->id]);
-        $chosen = Proposal::factory()->create(['project_id' => $project->id, 'freelancer_id' => $this->freelancer(ExperienceLevel::Intermediate)->id, 'proposed_price' => 7_000_000]);
+        $employer = $this->employer(balance: 10_000_000);
+        $project = $this->openProject($employer);
+        $hired = $this->freelancer(ExperienceLevel::Intermediate);
+        $hired->update(['name' => 'نیما رحیمی']);
+        $chosen = Proposal::factory()->create(['project_id' => $project->id, 'freelancer_id' => $hired->id, 'proposed_price' => 7_000_000]);
         $other = Proposal::factory()->create(['project_id' => $project->id, 'freelancer_id' => $this->freelancer()->id]);
+        $this->actingAs($employer);
 
-        $this->actingAs($employer)
-            ->post(route('employer.contracts.store', $chosen), ['mentorship_included' => true])
-            ->assertRedirect(route('employer.contracts.index'));
+        $this->post(route('employer.contracts.store', $chosen))
+            ->assertSessionHasErrors(['accept_deposit_terms' => 'برای استخدام، شرایط امانت حسن انجام کار را تأیید کن.']);
+
+        $this->post(route('employer.contracts.store', $chosen), ['accept_deposit_terms' => true])
+            ->assertRedirect(route('employer.contracts.index'))
+            ->assertInertiaFlash('toast.message', 'نیما رحیمی را استخدام کردی. ۳٬۱۵۰٬۰۰۰ تومان به‌عنوان امانت حسن انجام کار نگه داشته شد؛ اولین مرحله‌ها از همین مبلغ تأمین می‌شوند.');
 
         $contract = Contract::sole();
         $this->assertSame(7_000_000, $contract->amount);
-        $this->assertSame(25, $contract->fee_percent, 'paid mentorship adds 5% to the platform fee');
-        $this->assertFalse($contract->is_free_mentorship);
-        $this->assertSame($project->mentor_id, $contract->mentor_id);
+        $this->assertSame(20, $contract->fee_percent, 'no mentor requested on the proposal');
+        $this->assertFalse($contract->mentorship_included);
+        $this->assertSame(3_150_000, $contract->deposit_amount, '45% of the proposal price');
+        $this->assertSame(3_150_000, $contract->deposit_balance);
+
+        $wallet = $employer->wallet()->first();
+        $this->assertSame(6_850_000, $wallet->balance);
+        $this->assertSame(3_150_000, $wallet->held_balance);
+        $this->assertSame(-3_150_000, (int) $wallet->transactions()->where('type', TransactionType::EscrowHold)->sole()->amount);
+
         $this->assertSame(ProposalStatus::Accepted, $chosen->fresh()->status);
         $this->assertSame(ProposalStatus::Rejected, $other->fresh()->status);
         $this->assertSame(ProjectStatus::InProgress, $project->fresh()->status);
+        $this->assertSame(0, Ticket::count(), 'no mentoring ticket without a request');
 
-        $this->post(route('employer.contracts.store', $other))->assertSessionHasErrors('proposal');
+        $this->post(route('employer.contracts.store', $other), ['accept_deposit_terms' => true])->assertSessionHasErrors('proposal');
+    }
+
+    public function test_hiring_needs_the_deposit_in_the_wallet(): void
+    {
+        $employer = $this->employer(balance: 1_000_000);
+        $proposal = Proposal::factory()->create(['project_id' => $this->openProject($employer)->id, 'freelancer_id' => $this->freelancer()->id, 'proposed_price' => 5_000_000]);
+
+        $this->actingAs($employer)
+            ->post(route('employer.contracts.store', $proposal), ['accept_deposit_terms' => true])
+            ->assertSessionHasErrors(['deposit' => 'برای استخدام باید ۲٬۲۵۰٬۰۰۰ تومان امانت حسن انجام کار در کیف پولت باشد. اول ۱٬۲۵۰٬۰۰۰ تومان شارژ کن.']);
+
+        $this->assertSame(0, Contract::count());
+        $this->assertSame(ProposalStatus::Pending, $proposal->fresh()->status);
+        $this->assertSame(1_000_000, $employer->wallet()->first()->balance);
+    }
+
+    public function test_the_deposit_percent_comes_from_the_platform_settings(): void
+    {
+        PlatformSetting::where('setting_key', 'hire_deposit_percent')->update(['setting_value' => '30']);
+        $employer = $this->employer(balance: 5_000_000);
+
+        $contract = $this->hire($employer, $this->freelancer(), 2_000_000);
+
+        $this->assertSame(600_000, $contract->deposit_amount);
+    }
+
+    public function test_mentoring_comes_from_the_freelancers_proposal_and_opens_a_mentor_ticket(): void
+    {
+        $employer = $this->employer(balance: 10_000_000);
+        $freelancer = $this->freelancer(ExperienceLevel::Intermediate);
+        $proposal = Proposal::factory()->create([
+            'project_id' => $this->openProject($employer)->id,
+            'freelancer_id' => $freelancer->id,
+            'proposed_price' => 4_000_000,
+            'mentorship_requested' => true,
+        ]);
+
+        // The employer cannot switch mentoring on or off.
+        $this->actingAs($employer)
+            ->post(route('employer.contracts.store', $proposal), ['accept_deposit_terms' => true, 'mentorship_included' => false])
+            ->assertSessionHasNoErrors();
+
+        $contract = Contract::sole();
+        $this->assertTrue($contract->mentorship_included);
+        $this->assertSame(25, $contract->fee_percent, 'paid mentorship adds 5% to the platform fee');
+        $this->assertNull($contract->mentor_id, 'a mentor joins when they take the ticket');
+
+        $ticket = Ticket::sole();
+        $this->assertSame($contract->id, $ticket->contract_id);
+        $this->assertSame($freelancer->id, $ticket->requester_id);
+        $this->assertSame(TicketStatus::Open, $ticket->status);
+        $this->assertNull($ticket->assigned_mentor_id);
     }
 
     public function test_beginners_get_their_first_mentorships_free(): void
     {
-        $employer = $this->employer();
+        $employer = $this->employer(balance: 20_000_000);
         $beginner = $this->freelancer(ExperienceLevel::Beginner);
         $this->actingAs($employer);
 
         foreach ([1, 2, 3] as $round) {
-            $proposal = Proposal::factory()->create(['project_id' => $this->openProject($employer)->id, 'freelancer_id' => $beginner->id]);
-            $this->post(route('employer.contracts.store', $proposal), ['mentorship_included' => true])->assertSessionHasNoErrors();
+            $proposal = Proposal::factory()->create(['project_id' => $this->openProject($employer)->id, 'freelancer_id' => $beginner->id, 'mentorship_requested' => true]);
+            $this->post(route('employer.contracts.store', $proposal), ['accept_deposit_terms' => true])->assertSessionHasNoErrors();
         }
 
         $contracts = Contract::orderBy('id')->get();
         $this->assertSame([true, true, false], $contracts->pluck('is_free_mentorship')->all());
         $this->assertSame([20, 20, 25], $contracts->pluck('fee_percent')->all());
         $this->assertSame(2, $beginner->freelancerProfile()->first()->free_mentorships_used);
+        $this->assertSame(3, Ticket::whereNotNull('contract_id')->count());
     }
 
-    public function test_milestones_are_planned_funded_into_escrow_and_released_with_the_fee(): void
+    public function test_milestones_spend_the_deposit_first_then_the_wallet_and_release_with_the_fee(): void
     {
         $employer = $this->employer(balance: 4_000_000);
         $freelancer = $this->freelancer();
         $contract = $this->hire($employer, $freelancer, 5_000_000);
         $this->actingAs($employer);
+
+        // Hiring held 45% (2,250,000); 1,750,000 is still available.
+        $wallet = $employer->wallet()->first();
+        $this->assertSame([1_750_000, 2_250_000], [$wallet->balance, $wallet->held_balance]);
 
         $this->post(route('employer.milestones.store', $contract), ['title' => 'بیش از قرارداد', 'amount' => 6_000_000])
             ->assertSessionHasErrors(['amount' => 'جمع مرحله‌ها نمی‌تواند از مبلغ قرارداد بیشتر شود. ۵٬۰۰۰٬۰۰۰ تومان برای برنامه‌ریزی باقی مانده است.']);
@@ -268,10 +344,12 @@ class EmployerFlowTest extends TestCase
         $this->put(route('employer.milestones.update', $first), ['action' => 'release'])
             ->assertSessionHasErrors(['milestone' => 'فقط مرحله‌ی تحویل‌شده قابل پرداخت است.']);
 
+        // 2,250,000 from the deposit + 750,000 from the wallet.
         $this->put(route('employer.milestones.update', $first), ['action' => 'fund'])->assertSessionHasNoErrors();
-        $wallet = $employer->wallet()->first();
+        $wallet->refresh();
         $this->assertSame(1_000_000, $wallet->balance);
         $this->assertSame(3_000_000, $wallet->held_balance);
+        $this->assertSame(0, $contract->fresh()->deposit_balance);
 
         $this->put(route('employer.milestones.update', $second), ['action' => 'fund'])
             ->assertSessionHasErrors(['milestone' => 'موجودی کیف پولت کافی نیست. اول ۱٬۰۰۰٬۰۰۰ تومان شارژ کن.']);
@@ -290,11 +368,41 @@ class EmployerFlowTest extends TestCase
             [3_000_000, -600_000],
             $freelancerWallet->transactions()->orderBy('id')->pluck('amount')->all(),
         );
+        $this->assertLedgerMatchesWallets();
+    }
+
+    public function test_the_unused_deposit_returns_when_the_contract_completes(): void
+    {
+        $employer = $this->employer(balance: 10_000_000);
+        $contract = $this->hire($employer, $this->freelancer(), 4_000_000);
+        $this->actingAs($employer);
+
+        $this->put(route('employer.contracts.update', $contract), ['status' => 'completed'])
+            ->assertSessionHasNoErrors()
+            ->assertInertiaFlash('toast.message', 'قرارداد تکمیل شد و ۱٬۸۰۰٬۰۰۰ تومان امانت مصرف‌نشده به کیف پولت برگشت. برای فریلنسر نظر بگذار!');
+
+        $wallet = $employer->wallet()->first();
+        $this->assertSame([10_000_000, 0], [$wallet->balance, $wallet->held_balance]);
+        $this->assertSame(0, $contract->fresh()->deposit_balance);
+        $this->assertLedgerMatchesWallets();
+    }
+
+    public function test_an_employer_cannot_cancel_while_the_deposit_is_held(): void
+    {
+        $employer = $this->employer(balance: 10_000_000);
+        $contract = $this->hire($employer, $this->freelancer(), 4_000_000);
+        $this->actingAs($employer);
+
+        $this->put(route('employer.contracts.update', $contract), ['status' => 'cancelled'])
+            ->assertSessionHasErrors(['status' => 'امانت حسن انجام کار تا تصمیم کارشناس نگه داشته می‌شود. درخواست بررسی کارشناس ثبت کن و دلیل لغو را بنویس.']);
+
+        $this->assertSame(ContractStatus::Active, $contract->fresh()->status);
+        $this->assertSame(1_800_000, $employer->wallet()->first()->held_balance);
     }
 
     public function test_completed_contracts_are_reviewed_once(): void
     {
-        $employer = $this->employer();
+        $employer = $this->employer(balance: 1_000_000);
         $freelancer = $this->freelancer();
         $contract = $this->hire($employer, $freelancer, 1_000_000);
         $this->actingAs($employer);
@@ -316,7 +424,7 @@ class EmployerFlowTest extends TestCase
 
     public function test_milestones_of_other_employers_are_invisible(): void
     {
-        $contract = $this->hire($this->employer(), $this->freelancer(), 1_000_000);
+        $contract = $this->hire($this->employer(balance: 1_000_000), $this->freelancer(), 1_000_000);
         $milestone = Milestone::factory()->create(['contract_id' => $contract->id]);
 
         $this->actingAs($this->employer(balance: 5_000_000));
@@ -333,8 +441,18 @@ class EmployerFlowTest extends TestCase
             'proposed_price' => $amount,
         ]);
 
-        $this->actingAs($employer)->post(route('employer.contracts.store', $proposal))->assertSessionHasNoErrors();
+        $this->actingAs($employer)->post(route('employer.contracts.store', $proposal), ['accept_deposit_terms' => true])->assertSessionHasNoErrors();
 
         return Contract::where('proposal_id', $proposal->id)->sole();
+    }
+
+    private function assertLedgerMatchesWallets(): void
+    {
+        foreach (Wallet::all() as $wallet) {
+            $this->assertSame(
+                $wallet->balance,
+                (int) $wallet->transactions()->whereIn('status', [TransactionStatus::Succeeded, TransactionStatus::Pending])->sum('amount'),
+            );
+        }
     }
 }

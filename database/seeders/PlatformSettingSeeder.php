@@ -22,6 +22,8 @@ class PlatformSettingSeeder extends Seeder
             ['primary_field_exam_fee', '0', SettingValueType::Money, 'Exam for the first field of a freelancer is free'],
             ['extra_field_exam_fee', null, SettingValueType::Money, 'Fee (Toman) for the exam of every additional field - SET FROM ADMIN DASHBOARD'],
             ['contact_violation_action', 'suspend', SettingValueType::Text, 'What happens when phone/email/link is shared in chat'],
+            ['hire_deposit_percent', '45', SettingValueType::Int, 'Share of the proposal price the employer puts in escrow as a good-faith deposit when hiring'],
+            ['withdrawal_min_amount', '50000', SettingValueType::Money, 'Smallest amount (Toman) a user can ask to be paid out to their bank card'],
         ];
 
         foreach ($settings as [$key, $value, $type, $description]) {

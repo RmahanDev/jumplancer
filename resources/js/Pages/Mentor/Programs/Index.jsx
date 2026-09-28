@@ -140,7 +140,7 @@ export default function Index({ programs, filters: initialFilters, options: choi
                                 <article className={`jl-card h-100 jl-rise jl-rise-${Math.min(index + 1, 8)}`}>
                                     <header className="jl-card-header">
                                         <div className="min-w-0">
-                                            <Person user={program.mentee} meta={program.ticket?.subject ?? label('track', program.track)} />
+                                            <Person user={program.mentee} role="freelancer" meta={program.ticket?.subject ?? 'منتی فریلنسر'} />
                                         </div>
                                         <div className="d-flex align-items-center gap-1">
                                             <StatusBadge group="programStatus" value={program.status} />
@@ -174,7 +174,6 @@ export default function Index({ programs, filters: initialFilters, options: choi
                                     </header>
                                     <div className="jl-card-body">
                                         <div className="d-flex flex-wrap gap-1 mb-2">
-                                            <StatusBadge group="track" value={program.track} />
                                             {program.is_free_mentorship ? (
                                                 <Badge tone="success" icon="bi-gift">
                                                     رایگان (تازه‌کار)

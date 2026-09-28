@@ -30,7 +30,7 @@ enum Panel: string
     {
         return match ($this) {
             self::SuperAdmin => [RoleName::SuperAdmin],
-            self::Admin => [RoleName::SuperAdmin, RoleName::Admin],
+            self::Admin => [RoleName::SuperAdmin, RoleName::Admin, RoleName::Support],
             self::Mentor => [RoleName::Mentor],
             self::Freelancer => [RoleName::Freelancer],
             self::Employer => [RoleName::Employer],

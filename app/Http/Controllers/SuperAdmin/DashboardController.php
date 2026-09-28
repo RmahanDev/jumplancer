@@ -41,6 +41,7 @@ class DashboardController extends Controller
             'staff' => [
                 'super_admins' => User::role(RoleName::SuperAdmin)->count(),
                 'admins' => User::role(RoleName::Admin)->count(),
+                'supports' => User::role(RoleName::Support)->count(),
             ],
             'recentLogins' => UserResource::collection(
                 User::with('roles')->whereNotNull('last_login_at')->latest('last_login_at')->limit(8)->get(),

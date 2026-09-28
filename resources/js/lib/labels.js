@@ -7,6 +7,7 @@ export const ENUMS = {
     role: withTones([
         ['super_admin', 'مدیر کل', 'accent'],
         ['admin', 'ادمین', 'primary'],
+        ['support', 'پشتیبان', 'dark'],
         ['mentor', 'منتور', 'info'],
         ['freelancer', 'فریلنسر', 'success'],
         ['employer', 'کارفرما', 'warning'],
@@ -83,10 +84,6 @@ export const ENUMS = {
         ['motivational', 'انگیزشی', 'accent'],
         ['review', 'بازبینی کار', 'primary'],
     ]),
-    track: withTones([
-        ['freelancer', 'مسیر فریلنسر', 'success'],
-        ['employer', 'مسیر کارفرما', 'warning'],
-    ]),
     transactionType: withTones([
         ['deposit', 'شارژ کیف پول', 'success'],
         ['escrow_hold', 'بلوکه در امانت', 'info'],
@@ -104,6 +101,17 @@ export const ENUMS = {
         ['succeeded', 'موفق', 'success'],
         ['failed', 'ناموفق', 'danger'],
         ['cancelled', 'لغوشده', 'secondary'],
+    ]),
+    withdrawalStatus: withTones([
+        ['pending', 'در انتظار پرداخت', 'warning'],
+        ['paid', 'پرداخت شد', 'success'],
+        ['rejected', 'رد شد', 'danger'],
+        ['cancelled', 'لغو شد', 'secondary'],
+    ]),
+    disputeOutcome: withTones([
+        ['continue', 'ادامه‌ی قرارداد', 'info'],
+        ['refund_employer', 'بازگشت پول به کارفرما', 'warning'],
+        ['pay_freelancer', 'پرداخت به فریلنسر', 'success'],
     ]),
     budgetType: withTones([
         ['fixed', 'مبلغ ثابت'],
@@ -229,6 +237,7 @@ export const PERMISSIONS = {
     'mentoring.manage': { label: 'منتورینگ', description: 'تیکت‌ها و واگذاری آن‌ها به منتورها', icon: 'bi-life-preserver' },
     'content.manage': { label: 'محتوای آموزشی', description: 'مقاله، ویدیو، چک‌لیست و نقشه‌ی راه', icon: 'bi-journal-richtext' },
     'settings.manage': { label: 'تنظیمات پلتفرم', description: 'قوانین کسب‌وکار مثل پروژه‌ی رایگان و هزینه‌ی آزمون', icon: 'bi-sliders' },
+    'withdrawals.manage': { label: 'بازگشت وجه به کارت', description: 'بررسی درخواست‌ها، پرداخت با شماره‌ی پیگیری و رسید، یا رد درخواست', icon: 'bi-bank' },
 };
 
 export const SETTINGS = {
@@ -244,4 +253,11 @@ export const SETTINGS = {
         help: 'وقتی شماره، ایمیل یا لینک در چت پروژه فرستاده شود.',
         choiceLabels: { suspend: 'تعلیق فوری حساب', warning: 'فقط هشدار', block_message: 'فقط مسدود کردن پیام' },
     },
+    hire_deposit_percent: {
+        label: 'امانت حسن انجام کار هنگام استخدام',
+        unit: 'درصد',
+        icon: 'bi-safe',
+        help: 'کارفرما هنگام استخدام این درصد از مبلغ پیشنهاد فریلنسر را در کیف پولش امانت می‌گذارد؛ تا نظر کارشناس برداشتنی نیست.',
+    },
+    withdrawal_min_amount: { label: 'حداقل مبلغ برداشت از کیف پول', unit: 'تومان', icon: 'bi-bank', help: 'کمترین مبلغی که کاربر می‌تواند برای واریز به کارت بانکی‌اش درخواست بدهد.' },
 };

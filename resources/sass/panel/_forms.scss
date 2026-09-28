@@ -65,6 +65,13 @@
         padding-inline-start: 2.4rem;
     }
 
+    // A left-to-right field (card number, mobile, username, tracking code ...) starts on the left,
+    // so its icon sits there too and never covers the text.
+    &:has(> .form-control[dir='ltr']) .jl-input-icon {
+        inset-inline-start: auto;
+        left: .85rem;
+    }
+
     .jl-input-unit {
         position: absolute;
         inset-inline-end: .85rem;

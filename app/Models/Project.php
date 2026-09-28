@@ -14,13 +14,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * A job posted by an employer.
  */
-#[Fillable(['category_id', 'mentor_id', 'title', 'description', 'budget_type', 'budget_min', 'budget_max', 'status', 'is_beginner_friendly', 'deadline', 'published_at', 'posting_type', 'subscription_id'])]
+#[Fillable(['category_id', 'title', 'description', 'budget_type', 'budget_min', 'budget_max', 'status', 'is_beginner_friendly', 'deadline', 'published_at', 'posting_type', 'subscription_id'])]
 class Project extends Model
 {
     /** @use HasFactory<ProjectFactory> */
@@ -63,14 +64,6 @@ class Project extends Model
     }
 
     /**
-     * @return BelongsTo<User, $this>
-     */
-    public function mentor(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'mentor_id');
-    }
-
-    /**
      * @return BelongsTo<EmployerSubscription, $this>
      */
     public function subscription(): BelongsTo
@@ -100,6 +93,16 @@ class Project extends Model
     public function contracts(): HasMany
     {
         return $this->hasMany(Contract::class);
+    }
+
+    /**
+     * The contract of the hired freelancer (a project is awarded once; cancelled contracts stay as history).
+     *
+     * @return HasOne<Contract, $this>
+     */
+    public function currentContract(): HasOne
+    {
+        return $this->hasOne(Contract::class)->latestOfMany();
     }
 
     /**

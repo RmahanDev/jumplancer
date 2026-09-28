@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
 
-// Actions a page adds to the command palette (Ctrl+K), e.g. "کاربر جدید" or "خروجی تراکنش‌ها".
+// Actions a page adds to the panel search (topbar), e.g. "کاربر جدید" or "خروجی تراکنش‌ها".
 // Each hook call keeps a live reference, so commands always run with the page's latest state.
 const sources = new Set();
 
 /**
- * usePageCommands([{ id, label, icon, keywords?, shortcut?, run }])
+ * usePageCommands([{ id, label, icon, keywords?, run }])
  */
 export function usePageCommands(commands) {
     const ref = useRef(commands);

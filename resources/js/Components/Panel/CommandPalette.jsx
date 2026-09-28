@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { overlayOpened } from '../../hooks/useHotkeys';
+import { useEscape } from '../../hooks/useEscape';
 import { normalizeForSearch } from '../../lib/text';
-import Kbd from '../UI/Kbd';
 
 /**
- * Ctrl+K: jump to any page of the panel, run the page's actions, switch panel or theme.
- * commands: [{ id, label, group, icon, shortcut?, keywords?, hint?, run }]
+ * Search opened from the topbar button: jump to any page of the panel, run the page's actions,
+ * switch panel or theme. commands: [{ id, label, group, icon, keywords?, hint?, run }]
  */
 export default function CommandPalette({ open, onClose, commands }) {
     const [query, setQuery] = useState('');
@@ -21,11 +20,9 @@ export default function CommandPalette({ open, onClose, commands }) {
 
         setQuery('');
         setActive(0);
-        const closeOverlay = overlayOpened();
         const timer = window.setTimeout(() => inputRef.current?.focus(), 10);
 
         return () => {
-            closeOverlay();
             window.clearTimeout(timer);
         };
     }, [open]);
@@ -51,6 +48,8 @@ export default function CommandPalette({ open, onClose, commands }) {
     useEffect(() => {
         listRef.current?.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
     }, [active]);
+
+    useEscape(onClose, open);
 
     if (!open) {
         return null;
@@ -80,10 +79,6 @@ export default function CommandPalette({ open, onClose, commands }) {
             if (results[active]) {
                 run(results[active]);
             }
-        } else if (event.key === 'Escape' || ((event.ctrlKey || event.metaKey) && event.code === 'KeyK')) {
-            event.preventDefault();
-            event.stopPropagation();
-            onClose();
         }
     };
 
@@ -107,7 +102,9 @@ export default function CommandPalette({ open, onClose, commands }) {
                         autoComplete="off"
                         spellCheck={false}
                     />
-                    <kbd>Esc</kbd>
+                    <button type="button" className="jl-icon-btn" onClick={onClose} aria-label="بستن جستجو">
+                        <i className="bi bi-x-lg" />
+                    </button>
                 </div>
                 <div className="jl-palette-list" id="jl-palette-list" role="listbox" ref={listRef}>
                     {results.length === 0 && (
@@ -137,23 +134,10 @@ export default function CommandPalette({ open, onClose, commands }) {
                                         {command.label}
                                         {command.hint && <small className="d-block text-muted">{command.hint}</small>}
                                     </span>
-                                    {command.shortcut && <Kbd combo={command.shortcut} />}
                                 </button>
                             </div>
                         );
                     })}
-                </div>
-                <div className="jl-palette-footer">
-                    <span>
-                        <kbd>↑</kbd>
-                        <kbd>↓</kbd> جابه‌جایی
-                    </span>
-                    <span>
-                        <kbd>Enter</kbd> اجرا
-                    </span>
-                    <span>
-                        <kbd>Esc</kbd> بستن
-                    </span>
                 </div>
             </div>
         </>,

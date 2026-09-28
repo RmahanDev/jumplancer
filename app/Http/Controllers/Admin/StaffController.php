@@ -18,7 +18,7 @@ use Inertia\Response;
 use Spatie\Permission\Models\Role;
 
 /**
- * Admins and super admins with their permissions ("admins.manage").
+ * Admins, support agents and super admins with their permissions ("admins.manage").
  */
 class StaffController extends Controller
 {
@@ -26,7 +26,7 @@ class StaffController extends Controller
     {
         $actor = $request->user();
 
-        $staff = User::role([RoleName::SuperAdmin, RoleName::Admin])
+        $staff = User::role(RoleName::staff())
             ->with(['roles', 'permissions'])
             ->orderByDesc('id')
             ->get()
@@ -36,6 +36,7 @@ class StaffController extends Controller
         return Inertia::render('Admin/Staff/Index', [
             'staff' => StaffResource::collection($staff),
             'permissions' => AdminPermission::values(),
+            'supportDefaults' => array_map(fn (AdminPermission $permission): string => $permission->value, AdminPermission::supportDefaults()),
             'grantable' => $actor->staffPermissions(),
             'canCreateSuperAdmin' => $actor->isSuperAdmin(),
             'routes' => [
@@ -99,9 +100,7 @@ class StaffController extends Controller
 
     private function applyAccess(User $staff, SaveStaffRequest $request): void
     {
-        $role = $request->boolean('is_super_admin') ? RoleName::SuperAdmin : RoleName::Admin;
-
-        $staff->syncRoles([Role::findOrCreate($role->value, 'web')]);
+        $staff->syncRoles([Role::findOrCreate($request->role()->value, 'web')]);
         $staff->syncPermissions($request->grantedPermissions());
     }
 }

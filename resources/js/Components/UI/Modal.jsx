@@ -1,12 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { overlayOpened, useHotkeys } from '../../hooks/useHotkeys';
+import { useEscape } from '../../hooks/useEscape';
 
 let openModals = 0;
 
 /**
  * Controlled Bootstrap modal rendered by React (no Bootstrap JS), with enter/leave animation,
- * Esc to close, focus on the first field and body scroll lock.
+ * Esc or the close button to close, focus on the first field and body scroll lock.
  */
 export default function Modal({
     open,
@@ -55,7 +55,6 @@ export default function Modal({
         openModals += 1;
         document.body.classList.add('overflow-hidden');
         const previous = document.activeElement;
-        const closeOverlay = overlayOpened();
 
         const focusTimer = window.setTimeout(() => {
             const target = dialogRef.current?.querySelector('[data-autofocus], input:not([type=hidden]):not([disabled]), textarea, select, .btn-primary');
@@ -64,7 +63,6 @@ export default function Modal({
 
         return () => {
             window.clearTimeout(focusTimer);
-            closeOverlay();
             openModals -= 1;
 
             if (openModals === 0) {
@@ -75,7 +73,7 @@ export default function Modal({
         };
     }, [mounted]);
 
-    useHotkeys('escape', () => !busy && onClose(), { enabled: open, allowInInputs: true, overlay: true });
+    useEscape(() => !busy && onClose(), open);
 
     if (!mounted) {
         return null;
@@ -128,17 +126,10 @@ export function ModalBody({ children, className = '' }) {
     return <div className={`modal-body ${className}`}>{children}</div>;
 }
 
-/** Footer with a keyboard hint on the start side and actions on the end side. */
-export function ModalFooter({ children, hint = true }) {
+/** Footer with the actions on the end side. */
+export function ModalFooter({ children }) {
     return (
         <div className="modal-footer">
-            <span className="jl-modal-hint d-none d-sm-inline">
-                {hint && (
-                    <>
-                        <kbd>Ctrl</kbd> + <kbd>Enter</kbd> ثبت · <kbd>Esc</kbd> بستن
-                    </>
-                )}
-            </span>
             <div className="d-flex gap-2">{children}</div>
         </div>
     );

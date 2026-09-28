@@ -30,7 +30,7 @@ class UserResource extends JsonResource
             'status' => $this->status->value,
             'suspension_reason' => $this->suspension_reason,
             'suspended_at' => $this->suspended_at?->toIso8601String(),
-            'roles' => $this->whenLoaded('roles', fn () => $this->roles->pluck('name')->values()),
+            'roles' => $this->roleNames(),
             'freelancer_level' => $this->whenLoaded('freelancerProfile', fn () => $this->freelancerProfile?->level->value),
             'company_name' => $this->whenLoaded('employerProfile', fn () => $this->employerProfile?->company_name),
             'mentor_verified' => $this->whenLoaded('mentorProfile', fn () => $this->mentorProfile?->is_verified),
@@ -42,7 +42,7 @@ class UserResource extends JsonResource
     /**
      * The minimal shape used when a user appears inside another record (project owner, mentor ...).
      *
-     * @return array{id: int, name: string, username: ?string, avatar: ?string}|null
+     * @return array{id: int, name: string, username: ?string, avatar: ?string, roles: list<string>}|null
      */
     public static function summary(?User $user): ?array
     {
@@ -55,6 +55,7 @@ class UserResource extends JsonResource
             'name' => $user->name,
             'username' => $user->username,
             'avatar' => self::avatarUrl($user),
+            'roles' => $user->roleNames(),
         ];
     }
 

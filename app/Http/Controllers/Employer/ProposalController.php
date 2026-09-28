@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Employer;
 use App\Enums\ProposalStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProposalResource;
+use App\Models\PlatformSetting;
 use App\Models\Proposal;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -48,7 +49,12 @@ class ProposalController extends Controller
                 'id' => $project->id,
                 'title' => $project->title,
             ]),
+            'hiring' => [
+                'depositPercent' => PlatformSetting::hireDepositPercent(),
+                'balance' => $employer->ensureWallet()->balance,
+            ],
             'routes' => [
+                'wallet' => route('wallet.show'),
                 'update' => route('employer.proposals.update', ':id'),
                 'hire' => route('employer.contracts.store', ':id'),
                 'contracts' => route('employer.contracts.index'),

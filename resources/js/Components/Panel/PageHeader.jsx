@@ -1,16 +1,12 @@
 import { Head } from '@inertiajs/react';
-import { useHotkeys } from '../../hooks/useHotkeys';
 import { usePageCommands } from '../../lib/commands';
 
 /**
  * Page title (document title + h1), a short description and the page actions.
- * `primary` is the main action of the page ({ label, icon, onClick }): it gets the "N" shortcut
- * and an entry in the command palette.
+ * `primary` is the main action of the page ({ label, icon, onClick }); it is also listed in the panel search.
  */
 export default function PageHeader({ title, description = null, actions = null, primary = null, children = null }) {
     const primaryEnabled = Boolean(primary) && !primary.disabled;
-
-    useHotkeys('n', () => primary?.onClick(), { enabled: primaryEnabled });
 
     usePageCommands(
         primaryEnabled
@@ -19,7 +15,6 @@ export default function PageHeader({ title, description = null, actions = null, 
                       id: 'page:primary',
                       label: primary.label,
                       icon: primary.icon ?? 'bi-plus-lg',
-                      shortcut: 'n',
                       keywords: ['جدید', 'افزودن', 'new', 'add'],
                       run: primary.onClick,
                   },
@@ -43,7 +38,6 @@ export default function PageHeader({ title, description = null, actions = null, 
                             <button type="button" className="btn btn-primary" onClick={primary.onClick} disabled={primary.disabled}>
                                 <i className={`bi ${primary.icon ?? 'bi-plus-lg'}`} />
                                 {primary.label}
-                                <kbd className="d-none d-md-inline-flex">N</kbd>
                             </button>
                         )}
                     </div>

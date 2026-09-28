@@ -1,15 +1,14 @@
 import { router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import CommandPalette from '../Components/Panel/CommandPalette';
-import ShortcutsHelp from '../Components/Panel/ShortcutsHelp';
 import Sidebar from '../Components/Panel/Sidebar';
 import Topbar from '../Components/Panel/Topbar';
 import ConfirmHost from '../Components/UI/ConfirmDialog';
 import Toaster from '../Components/UI/Toaster';
-import { useHotkeys } from '../hooks/useHotkeys';
+import { useEscape } from '../hooks/useEscape';
 import { getPageCommands } from '../lib/commands';
 import { PANELS } from '../lib/labels';
-import { toggleTheme, setThemePreference } from '../lib/theme';
+import { setThemePreference } from '../lib/theme';
 
 const COLLAPSE_KEY = 'jl-sidebar-collapsed';
 
@@ -25,16 +24,9 @@ function isDesktop() {
     return window.matchMedia?.('(min-width: 992px)').matches ?? true;
 }
 
-/** "G then D" style jump to a page of the panel. */
-function NavShortcut({ combo, href }) {
-    useHotkeys(combo, () => router.visit(href));
-
-    return null;
-}
-
 /**
  * Shell of every dashboard page (the default Inertia layout, kept across visits):
- * sidebar, topbar, command palette, shortcuts help, toasts and confirm dialogs.
+ * sidebar, topbar, panel search, toasts and confirm dialogs.
  */
 export default function PanelLayout({ children }) {
     const { auth, panel, impersonating } = usePage().props;
@@ -42,7 +34,6 @@ export default function PanelLayout({ children }) {
     const [collapsed, setCollapsed] = useState(readCollapsed);
     const [mobileOpen, setMobileOpen] = useState(false);
     const [paletteOpen, setPaletteOpen] = useState(false);
-    const [helpOpen, setHelpOpen] = useState(false);
     const [paletteCommands, setPaletteCommands] = useState([]);
 
     useEffect(() => router.on('navigate', () => setMobileOpen(false)), []);
@@ -67,7 +58,6 @@ export default function PanelLayout({ children }) {
             group: 'رفتن به',
             label: item.label,
             icon: item.icon,
-            shortcut: item.shortcut,
             keywords: [item.group ?? '', PANELS[panel.current]?.short ?? ''],
             run: () => router.visit(item.href),
         }));
@@ -86,13 +76,12 @@ export default function PanelLayout({ children }) {
         return [
             ...navigation,
             ...panels,
-            { id: 'account:profile', group: 'حساب', label: 'حساب کاربری و امنیت', icon: 'bi-person-gear', shortcut: 'g s', keywords: ['پروفایل', 'رمز', 'profile', 'password'], run: () => router.visit(panel.profileUrl) },
+            { id: 'account:profile', group: 'حساب', label: 'حساب کاربری و امنیت', icon: 'bi-person-gear', keywords: ['پروفایل', 'رمز', 'profile', 'password'], run: () => router.visit(panel.profileUrl) },
             { id: 'account:logout', group: 'حساب', label: 'خروج از حساب', icon: 'bi-box-arrow-left', keywords: ['logout', 'خروج'], run: () => router.post(panel.logoutUrl) },
             { id: 'theme:light', group: 'ظاهر', label: 'تم روشن', icon: 'bi-sun', keywords: ['light', 'روشن', 'تم'], run: () => setThemePreference('light') },
             { id: 'theme:dark', group: 'ظاهر', label: 'تم تیره', icon: 'bi-moon-stars', keywords: ['dark', 'تیره', 'تم', 'شب'], run: () => setThemePreference('dark') },
             { id: 'theme:auto', group: 'ظاهر', label: 'تم هماهنگ با سیستم', icon: 'bi-circle-half', keywords: ['auto', 'system', 'سیستم', 'تم'], run: () => setThemePreference('auto') },
-            { id: 'ui:sidebar', group: 'ظاهر', label: 'جمع و باز کردن منوی کناری', icon: 'bi-layout-sidebar-inset-reverse', shortcut: 'b', keywords: ['sidebar', 'منو'], run: toggleSidebar },
-            { id: 'ui:help', group: 'راهنما', label: 'میان‌برهای صفحه‌کلید', icon: 'bi-keyboard', shortcut: 'shift+/', keywords: ['shortcut', 'راهنما', 'کلید'], run: () => setHelpOpen(true) },
+            { id: 'ui:sidebar', group: 'ظاهر', label: 'جمع و باز کردن منوی کناری', icon: 'bi-layout-sidebar-inset-reverse', keywords: ['sidebar', 'منو'], run: toggleSidebar },
         ];
     }, [panel]);
 
@@ -102,12 +91,7 @@ export default function PanelLayout({ children }) {
         setPaletteOpen(true);
     };
 
-    useHotkeys('mod+k', () => (paletteOpen ? setPaletteOpen(false) : openPalette()), { allowInInputs: true });
-    useHotkeys('shift+/', () => setHelpOpen(true));
-    useHotkeys('t', () => toggleTheme());
-    useHotkeys('b', toggleSidebar);
-    useHotkeys('g s', () => panel && router.visit(panel.profileUrl), { enabled: Boolean(panel) });
-    useHotkeys('escape', () => setMobileOpen(false), { enabled: mobileOpen });
+    useEscape(() => setMobileOpen(false), mobileOpen);
 
     // Pages outside a panel (e.g. an error page for a guest) get the bare frame.
     if (!panel || !user) {
@@ -146,7 +130,6 @@ export default function PanelLayout({ children }) {
                     onToggleSidebar={toggleSidebar}
                     onOpenMobile={() => setMobileOpen(true)}
                     onOpenPalette={openPalette}
-                    onOpenHelp={() => setHelpOpen(true)}
                 />
 
                 <main id="main" className="jl-content" tabIndex={-1}>
@@ -155,20 +138,10 @@ export default function PanelLayout({ children }) {
 
                 <footer className="jl-footer d-flex flex-wrap justify-content-between gap-2">
                     <span>جامپ‌لنسر — شروع کار آزاد، قدم‌به‌قدم</span>
-                    <span className="d-none d-sm-inline">
-                        برای دیدن همه‌ی میان‌برها <kbd>?</kbd> را بزن.
-                    </span>
                 </footer>
             </div>
 
-            {(panel.navigation ?? [])
-                .filter((item) => item.shortcut)
-                .map((item) => (
-                    <NavShortcut key={item.key} combo={item.shortcut} href={item.href} />
-                ))}
-
             <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} commands={paletteCommands} />
-            <ShortcutsHelp open={helpOpen} onClose={() => setHelpOpen(false)} navigation={panel.navigation} />
             <Toaster />
             <ConfirmHost />
         </div>

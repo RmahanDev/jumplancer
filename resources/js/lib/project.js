@@ -1,4 +1,4 @@
-import { formatMoney } from './format';
+import { formatCompact, formatMoney } from './format';
 
 /** "۵٬۰۰۰٬۰۰۰ تا ۸٬۰۰۰٬۰۰۰ تومان" / "۲۵۰٬۰۰۰ تومان (ساعتی)" / "توافقی" */
 export function budgetText(project) {
@@ -11,6 +11,24 @@ export function budgetText(project) {
     const single = project.budget_max ?? project.budget_min;
 
     return single ? `${formatMoney(single)}${unit}` : 'توافقی';
+}
+
+/** Short budget for tight table cells: "۲٫۵ تا ۴ میلیون تومان" (full text belongs in a title). */
+export function budgetShort(project) {
+    const unit = project.budget_type === 'hourly' ? ' ساعتی' : '';
+    const [min, max] = [project.budget_min, project.budget_max];
+
+    if (min && max && min !== max) {
+        const [minText, maxText] = [formatCompact(min), formatCompact(max)];
+        const [minNumber, minWord] = minText.split(' ');
+        const [maxNumber, maxWord] = maxText.split(' ');
+
+        return minWord && minWord === maxWord ? `${minNumber} تا ${maxNumber} ${maxWord} تومان${unit}` : `${minText} تا ${maxText} تومان${unit}`;
+    }
+
+    const single = max ?? min;
+
+    return single ? `${formatCompact(single)} تومان${unit}` : 'توافقی';
 }
 
 /**

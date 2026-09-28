@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Enums\AdminPermission;
+use App\Enums\RoleName;
 use App\Enums\UserStatus;
 use App\Http\Requests\Concerns\NormalizesAccountFields;
 use Illuminate\Auth\Access\Response;
@@ -13,7 +14,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 /**
- * Create or edit an admin / super admin. Nobody can hand out a permission they do not hold,
+ * Create or edit an admin, support agent or super admin. Nobody can hand out a permission they do not hold,
  * and only super admins can create or promote other super admins.
  */
 class SaveStaffRequest extends FormRequest
@@ -37,7 +38,10 @@ class SaveStaffRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->normalizeAccountFields();
-        $this->merge(['is_super_admin' => $this->boolean('is_super_admin')]);
+        // Older clients sent a boolean; the role select is the source of truth now.
+        if (! $this->filled('role')) {
+            $this->merge(['role' => $this->boolean('is_super_admin') ? RoleName::SuperAdmin->value : RoleName::Admin->value]);
+        }
     }
 
     /**
@@ -53,7 +57,7 @@ class SaveStaffRequest extends FormRequest
         return [
             ...$this->accountRules($staff),
             'password' => [$staff ? 'nullable' : 'required', Password::defaults()],
-            'is_super_admin' => ['boolean', Rule::when(! $actor->isSuperAdmin(), ['declined'])],
+            'role' => ['required', Rule::in(RoleName::staffValues()), Rule::when(! $actor->isSuperAdmin(), [Rule::notIn([RoleName::SuperAdmin->value])])],
             'status' => [$staff ? 'required' : 'nullable', Rule::in([UserStatus::Active->value, UserStatus::Suspended->value])],
             'permissions' => ['present', 'array'],
             'permissions.*' => ['string', 'distinct', Rule::in($actor->staffPermissions())],
@@ -66,9 +70,14 @@ class SaveStaffRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'is_super_admin.declined' => __('Only a super admin can create another super admin.'),
+            'role.not_in' => __('Only a super admin can create another super admin.'),
             'permissions.*.in' => __('You can only grant permissions that you have yourself.'),
         ];
+    }
+
+    public function role(): RoleName
+    {
+        return RoleName::from($this->validated('role'));
     }
 
     /**
@@ -78,7 +87,7 @@ class SaveStaffRequest extends FormRequest
      */
     public function grantedPermissions(): array
     {
-        return $this->boolean('is_super_admin')
+        return $this->role() === RoleName::SuperAdmin
             ? []
             : array_values(array_intersect(AdminPermission::values(), $this->validated('permissions')));
     }

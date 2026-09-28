@@ -14,7 +14,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Mentoring requests of freelancers and employers (the requester's side of tickets).
+ * Mentoring requests of freelancers (the requester's side of tickets). Employers do not get mentoring.
  */
 class TicketController extends Controller
 {

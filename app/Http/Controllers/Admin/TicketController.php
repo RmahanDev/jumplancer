@@ -32,7 +32,7 @@ class TicketController extends Controller
         ]);
 
         $tickets = Ticket::query()
-            ->with(['requester', 'assignedMentor'])
+            ->with(['requester', 'assignedMentor', 'contract.project'])
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
             ->when($filters['type'] ?? null, fn (Builder $query, string $type) => $query->where('ticket_type', $type))
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $query->where('subject', 'like', '%'.PersianText::normalize($search).'%'))

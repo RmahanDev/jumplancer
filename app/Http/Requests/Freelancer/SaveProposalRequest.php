@@ -38,6 +38,8 @@ class SaveProposalRequest extends FormRequest
             'cover_letter' => ['required', 'string', 'min:30', 'max:5000'],
             'proposed_price' => ['required', 'integer', 'min:1000', 'max:10000000000'],
             'delivery_days' => ['required', 'integer', 'min:1', 'max:365'],
+            // Mentoring is the freelancer's choice, made on the proposal (never the employer's).
+            'mentorship_requested' => ['boolean'],
         ];
     }
 

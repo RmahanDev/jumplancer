@@ -1,15 +1,14 @@
 import { Link, router } from '@inertiajs/react';
-import { label, PANELS } from '../../lib/labels';
+import { PANELS } from '../../lib/labels';
+import UserName from '../UI/UserName';
 import ThemeToggle from '../ThemeToggle';
 import Avatar from '../UI/Avatar';
 import Dropdown, { DropdownDivider, DropdownItem } from '../UI/Dropdown';
-import Kbd from '../UI/Kbd';
 
 /**
- * Sticky bar above the content: menu buttons, where you are, search (Ctrl+K), panel switcher,
- * theme, shortcuts help and the account menu.
+ * Sticky bar above the content: menu buttons, where you are, search, panel switcher, theme and the account menu.
  */
-export default function Topbar({ panel, user, onToggleSidebar, onOpenMobile, onOpenPalette, onOpenHelp }) {
+export default function Topbar({ panel, user, onToggleSidebar, onOpenMobile, onOpenPalette }) {
     const current = panel?.current ? PANELS[panel.current] : null;
     const activeItem = panel?.navigation?.find((item) => item.active);
     const otherPanels = (panel?.available ?? []).filter((item) => item.key !== panel.current);
@@ -24,7 +23,7 @@ export default function Topbar({ panel, user, onToggleSidebar, onOpenMobile, onO
                 className="jl-icon-btn d-none d-lg-inline-grid"
                 onClick={onToggleSidebar}
                 aria-label="جمع و باز کردن منوی کناری"
-                data-tip="منوی کناری — کلید B"
+                data-tip="منوی کناری"
             >
                 <i className="bi bi-layout-sidebar-inset-reverse" />
             </button>
@@ -39,10 +38,9 @@ export default function Topbar({ panel, user, onToggleSidebar, onOpenMobile, onO
                 )}
             </div>
 
-            <button type="button" className="jl-search-trigger ms-md-3" onClick={onOpenPalette} aria-label="جستجو و دستورها (Ctrl+K)">
+            <button type="button" className="jl-search-trigger ms-md-3" onClick={onOpenPalette} aria-label="جستجو در پنل">
                 <i className="bi bi-search" />
-                <span>جستجو و دستورها…</span>
-                <Kbd combo="mod+k" />
+                <span>جستجو در پنل…</span>
             </button>
 
             <div className="flex-grow-1" />
@@ -73,10 +71,6 @@ export default function Topbar({ panel, user, onToggleSidebar, onOpenMobile, onO
 
             <ThemeToggle />
 
-            <button type="button" className="jl-icon-btn is-bordered d-none d-sm-inline-grid" onClick={onOpenHelp} aria-label="میان‌برهای صفحه‌کلید" data-tip="میان‌برها — کلید ?">
-                <i className="bi bi-keyboard" />
-            </button>
-
             {user && (
                 <Dropdown
                     width={260}
@@ -89,12 +83,8 @@ export default function Topbar({ panel, user, onToggleSidebar, onOpenMobile, onO
                     {(close) => (
                         <>
                             <div className="px-3 py-2">
-                                <div className="fw-bold text-truncate">{user.name}</div>
-                                <div className="small text-muted text-truncate">
-                                    {user.username ? <span className="ltr">@{user.username}</span> : user.email}
-                                    {' · '}
-                                    {user.roles.map((role) => label('role', role)).join('، ')}
-                                </div>
+                                <UserName user={user} className="fw-bold" />
+                                <div className="small text-muted text-truncate">{user.username ? <span className="ltr">@{user.username}</span> : user.email}</div>
                             </div>
                             <DropdownDivider />
                             <DropdownItem as={Link} href={panel.profileUrl} icon="bi-person-gear" onClick={close}>
@@ -105,15 +95,6 @@ export default function Topbar({ panel, user, onToggleSidebar, onOpenMobile, onO
                                     {PANELS[item.key]?.label ?? item.key}
                                 </DropdownItem>
                             ))}
-                            <DropdownItem
-                                icon="bi-keyboard"
-                                onClick={() => {
-                                    close();
-                                    onOpenHelp();
-                                }}
-                            >
-                                میان‌برهای صفحه‌کلید
-                            </DropdownItem>
                             <DropdownDivider />
                             <DropdownItem
                                 icon="bi-box-arrow-left"

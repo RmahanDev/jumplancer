@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Mentor;
 
-use App\Enums\MentorshipTrack;
 use App\Enums\TicketStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\TicketResource;
@@ -26,7 +25,7 @@ class TicketController extends Controller
         $mentor = $request->user();
 
         $tickets = Ticket::query()
-            ->with(['requester.roles', 'requester.freelancerProfile', 'assignedMentor'])
+            ->with(['requester.freelancerProfile', 'assignedMentor', 'contract.project'])
             ->withCount('mentorshipPrograms')
             ->when($tab === 'queue', fn ($query) => $query->where('status', TicketStatus::Open)->whereNull('assigned_mentor_id'))
             ->when($tab === 'mine', fn ($query) => $query->where('assigned_mentor_id', $mentor->id))
@@ -43,7 +42,6 @@ class TicketController extends Controller
                 'queue' => Ticket::where('status', TicketStatus::Open)->whereNull('assigned_mentor_id')->count(),
                 'mine' => $mentor->assignedTickets()->where('status', '!=', TicketStatus::Closed)->count(),
             ],
-            'tracks' => array_column(MentorshipTrack::cases(), 'value'),
             'routes' => [
                 'update' => route('mentor.tickets.update', ':id'),
                 'startProgram' => route('mentor.programs.store'),

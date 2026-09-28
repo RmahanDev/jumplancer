@@ -54,7 +54,7 @@ class DashboardController extends Controller
                 'projectsByStatus' => collect(ProjectStatus::cases())->mapWithKeys(fn (ProjectStatus $status): array => [
                     $status->value => Project::where('status', $status)->count(),
                 ]),
-                'usersByRole' => collect([RoleName::Freelancer, RoleName::Employer, RoleName::Mentor, RoleName::Admin])->mapWithKeys(fn (RoleName $role): array => [
+                'usersByRole' => collect([RoleName::Freelancer, RoleName::Employer, RoleName::Mentor, RoleName::Admin, RoleName::Support])->mapWithKeys(fn (RoleName $role): array => [
                     $role->value => User::role($role)->count(),
                 ]),
             ]),

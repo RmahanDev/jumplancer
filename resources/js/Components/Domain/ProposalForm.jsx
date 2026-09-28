@@ -1,5 +1,6 @@
 import ModalForm from '../Form/ModalForm';
 import NumberInput from '../Form/NumberInput';
+import Switch from '../Form/Switch';
 import Textarea from '../Form/Textarea';
 import { Badge } from '../UI/Badge';
 import { formatDate, formatNumber } from '../../lib/format';
@@ -10,7 +11,8 @@ const TIPS = ['نیاز کارفرما را با کلمات خودت خلاصه 
 
 /**
  * Send a new proposal (`project` + `storeUrl`) or edit a pending one (`proposal` + `updateUrl` template).
- * The form reminds the freelancer that sharing contact details is against the platform rules.
+ * The freelancer decides here whether they want a mentor on this project; the form also reminds them
+ * that sharing contact details is against the platform rules.
  */
 export default function ProposalForm({ modal, storeUrl = null, updateUrl = null }) {
     const { project, proposal } = modal.record ?? {};
@@ -32,6 +34,7 @@ export default function ProposalForm({ modal, storeUrl = null, updateUrl = null 
                 cover_letter: proposal?.cover_letter ?? '',
                 proposed_price: proposal?.proposed_price ?? project?.budget_min ?? '',
                 delivery_days: proposal?.delivery_days ?? '',
+                mentorship_requested: proposal?.mentorship_requested ?? false,
             }}
             transform={(data) => ({ ...data, proposed_price: Number(data.proposed_price || 0), delivery_days: Number(data.delivery_days || 0) })}
             submitLabel={editing ? 'ذخیره‌ی پیشنهاد' : 'ارسال پیشنهاد'}
@@ -75,6 +78,13 @@ export default function ProposalForm({ modal, storeUrl = null, updateUrl = null 
                     />
                     <NumberInput form={form} name="proposed_price" label="قیمت پیشنهادی" money required className="col-md-6" />
                     <NumberInput form={form} name="delivery_days" label="زمان تحویل" unit="روز" required className="col-md-6" />
+                    <Switch
+                        form={form}
+                        name="mentorship_requested"
+                        className="col-12"
+                        label="برای این پروژه منتور می‌خواهم"
+                        description="اگر استخدام شوی، یک منتور باتجربه در طول پروژه همراهت است. کارمزد پلتفرم در این حالت ۵٪ بیشتر است؛ دو منتورینگ اول تازه‌کارها رایگان است. کارفرما این انتخاب را می‌بیند."
+                    />
                     <div className="col-12">
                         <div className="small text-muted d-flex flex-wrap gap-3">
                             {TIPS.map((tip) => (

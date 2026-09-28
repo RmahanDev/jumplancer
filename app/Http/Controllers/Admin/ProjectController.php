@@ -4,14 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\BudgetType;
 use App\Enums\ProjectStatus;
-use App\Enums\RoleName;
+use App\Enums\ProposalStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateProjectRequest;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\ProjectResource;
 use App\Models\Category;
 use App\Models\Project;
-use App\Models\User;
 use App\Support\PersianText;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -34,7 +33,17 @@ class ProjectController extends Controller
         ]);
 
         $projects = Project::query()
-            ->with(['employer', 'category', 'mentor'])
+            ->with([
+                'employer',
+                'category',
+                'currentContract.freelancer',
+                'proposals' => fn ($query) => $query
+                    ->with('freelancer.freelancerProfile')
+                    ->whereNot('status', ProposalStatus::Draft)
+                    ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [ProposalStatus::Accepted->value])
+                    ->oldest()
+                    ->oldest('id'),
+            ])
             ->withCount('proposals')
             ->when($filters['search'] ?? null, fn (Builder $query, string $search) => $query->where('title', 'like', '%'.PersianText::normalize($search).'%'))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
@@ -60,7 +69,6 @@ class ProjectController extends Controller
                 ->groupBy('status')
                 ->pluck('total', 'status'),
             'categories' => CategoryResource::collection(Category::topLevel()->with('children')->orderBy('sort_order')->get()),
-            'mentors' => User::role(RoleName::Mentor)->orderBy('name')->get(['id', 'name'])->map(fn (User $mentor): array => ['id' => $mentor->id, 'name' => $mentor->name]),
             'options' => [
                 'statuses' => array_column(ProjectStatus::cases(), 'value'),
                 'budgetTypes' => array_column(BudgetType::cases(), 'value'),

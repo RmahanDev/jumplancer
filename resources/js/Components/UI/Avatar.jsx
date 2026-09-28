@@ -1,4 +1,5 @@
 import { initials } from '../../lib/format';
+import UserName from './UserName';
 
 // Calm, readable avatar colors (white initials clear 4.5:1 on each).
 const COLORS = ['#006b82', '#0f6fbf', '#6d4bc2', '#b0417a', '#b85c00', '#2f7d4f', '#0e7490', '#475569'];
@@ -23,8 +24,8 @@ export default function Avatar({ user, size = null, className = '' }) {
     );
 }
 
-/** Avatar + name + a muted second line (username, role, company ...). */
-export function Person({ user, meta = null, size = null }) {
+/** Avatar + name with its role box + a muted second line (username, company ...). */
+export function Person({ user, meta = null, size = null, role = null }) {
     if (!user) {
         return <span className="text-muted">—</span>;
     }
@@ -33,7 +34,7 @@ export function Person({ user, meta = null, size = null }) {
         <span className="jl-person">
             <Avatar user={user} size={size} />
             <span className="min-w-0 d-flex flex-column">
-                <span className="jl-person-name">{user.name}</span>
+                <UserName user={user} role={role} className="jl-person-name" />
                 {(meta ?? user.username) && <span className="jl-person-meta">{meta ?? <span className="ltr">@{user.username}</span>}</span>}
             </span>
         </span>

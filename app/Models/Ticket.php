@@ -13,9 +13,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Every mentoring request starts as a ticket.
+ * Every mentoring request starts as a ticket: sent by a freelancer, or opened automatically when a
+ * freelancer who asked for a mentor on their proposal is hired (contract_id is set then).
  */
-#[Fillable(['ticket_type', 'channel', 'phone_number', 'subject', 'message', 'status', 'assigned_mentor_id', 'closed_at'])]
+#[Fillable(['contract_id', 'ticket_type', 'channel', 'phone_number', 'subject', 'message', 'status', 'assigned_mentor_id', 'closed_at'])]
 class Ticket extends Model
 {
     /** @use HasFactory<TicketFactory> */
@@ -42,6 +43,16 @@ class Ticket extends Model
     public function requester(): BelongsTo
     {
         return $this->belongsTo(User::class, 'requester_id');
+    }
+
+    /**
+     * The contract whose freelancer asked for a mentor (null for general mentoring requests).
+     *
+     * @return BelongsTo<Contract, $this>
+     */
+    public function contract(): BelongsTo
+    {
+        return $this->belongsTo(Contract::class);
     }
 
     /**

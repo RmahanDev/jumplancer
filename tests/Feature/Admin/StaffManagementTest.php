@@ -30,7 +30,7 @@ class StaffManagementTest extends TestCase
      * @param  list<string>  $permissions
      * @return array<string, mixed>
      */
-    private function staffPayload(string $username, array $permissions = [], bool $superAdmin = false): array
+    private function staffPayload(string $username, array $permissions = [], string $role = 'admin'): array
     {
         return [
             'name' => 'ادمین تازه',
@@ -38,7 +38,7 @@ class StaffManagementTest extends TestCase
             'email' => "{$username}@example.com",
             'phone' => null,
             'password' => 'secret123',
-            'is_super_admin' => $superAdmin,
+            'role' => $role,
             'status' => 'active',
             'permissions' => $permissions,
         ];
@@ -63,7 +63,7 @@ class StaffManagementTest extends TestCase
     public function test_super_admin_can_create_another_super_admin_with_full_access(): void
     {
         $this->actingAs($this->superAdmin())
-            ->post(route('admin.admins.store'), $this->staffPayload('cto', ['users.manage'], superAdmin: true))
+            ->post(route('admin.admins.store'), $this->staffPayload('cto', ['users.manage'], role: 'super_admin'))
             ->assertSessionHasNoErrors();
 
         $cto = User::firstWhere('username', 'cto');
@@ -122,10 +122,32 @@ class StaffManagementTest extends TestCase
         $manager = $this->adminWith(AdminPermission::cases());
 
         $this->actingAs($manager)
-            ->post(route('admin.admins.store'), $this->staffPayload('boss', [], superAdmin: true))
-            ->assertSessionHasErrors(['is_super_admin' => 'فقط مدیر کل می‌تواند مدیر کل دیگری تعریف کند.']);
+            ->post(route('admin.admins.store'), $this->staffPayload('boss', [], role: 'super_admin'))
+            ->assertSessionHasErrors(['role' => 'فقط مدیر کل می‌تواند مدیر کل دیگری تعریف کند.']);
 
         $this->assertDatabaseMissing('users', ['username' => 'boss']);
+    }
+
+    public function test_support_agents_are_staff_with_their_own_role(): void
+    {
+        $this->actingAs($this->superAdmin())
+            ->post(route('admin.admins.store'), $this->staffPayload('helpdesk', ['mentoring.manage', 'withdrawals.manage'], role: 'support'))
+            ->assertSessionHasNoErrors();
+
+        $support = User::firstWhere('username', 'helpdesk');
+        $this->assertTrue($support->hasRole(RoleName::Support));
+        $this->assertTrue($support->isStaff());
+        $this->assertSame(['support'], $support->roleNames());
+        $this->assertEqualsCanonicalizing(['mentoring.manage', 'withdrawals.manage'], $support->staffPermissions());
+
+        $this->actingAs($support->refresh())->get(route('admin.withdrawals.index'))->assertOk();
+        $this->get(route('admin.users.index'))->assertForbidden();
+
+        $this->actingAs($this->superAdmin())->get(route('admin.admins.index'))->assertInertia(fn (Assert $page) => $page
+            ->where('staff', fn ($staff) => collect($staff)->firstWhere('username', 'helpdesk')['role'] === 'support')
+            ->where('supportDefaults', ['mentoring.manage', 'withdrawals.manage']));
+
+        $this->post(route('admin.admins.store'), $this->staffPayload('nobody', [], role: 'freelancer'))->assertSessionHasErrors('role');
     }
 
     public function test_admins_cannot_touch_super_admins_or_admins_with_more_access(): void

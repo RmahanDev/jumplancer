@@ -3,6 +3,8 @@
 use App\Enums\AdminPermission;
 use App\Enums\Panel;
 use App\Http\Controllers\Admin;
+use App\Http\Controllers\BankCardController;
+use App\Http\Controllers\ContractDisputeController;
 use App\Http\Controllers\Employer;
 use App\Http\Controllers\Freelancer;
 use App\Http\Controllers\ImpersonationController;
@@ -14,6 +16,8 @@ use App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\WalletDepositController;
+use App\Http\Controllers\WithdrawalController;
+use App\Http\Controllers\WithdrawalReceiptController;
 use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 
@@ -36,8 +40,18 @@ Route::prefix('panel')->group(function () {
     Route::put('profile/password', [PasswordController::class, 'update'])->name('profile.password.update');
     Route::get('wallet', WalletController::class)->name('wallet.show');
     Route::post('wallet/deposits', WalletDepositController::class)->name('wallet.deposits.store');
-    Route::get('tickets', [TicketController::class, 'index'])->name('tickets.index');
-    Route::post('tickets', [TicketController::class, 'store'])->name('tickets.store');
+    Route::post('wallet/cards', [BankCardController::class, 'store'])->name('wallet.cards.store');
+    Route::delete('wallet/cards/{bankCard}', [BankCardController::class, 'destroy'])->name('wallet.cards.destroy');
+    Route::post('wallet/withdrawals', [WithdrawalController::class, 'store'])->name('wallet.withdrawals.store');
+    Route::delete('wallet/withdrawals/{withdrawalRequest}', [WithdrawalController::class, 'destroy'])->name('wallet.withdrawals.destroy');
+    Route::get('withdrawals/{withdrawalRequest}/receipt', WithdrawalReceiptController::class)->name('withdrawals.receipt');
+    Route::post('contracts/{contract}/disputes', ContractDisputeController::class)->name('contracts.disputes.store');
+
+    // Mentoring requests are for freelancers only (employers do not get mentoring).
+    Route::middleware(Panel::Freelancer->middleware())->group(function () {
+        Route::get('tickets', [TicketController::class, 'index'])->name('tickets.index');
+        Route::post('tickets', [TicketController::class, 'store'])->name('tickets.store');
+    });
     Route::get('portfolio-media/{portfolioMedia}', PortfolioMediaFileController::class)->name('portfolio-media.show');
 
     // Super admin: developer tools with full access.
@@ -79,6 +93,12 @@ Route::prefix('panel')->group(function () {
             Route::put('disputes/{dispute}', Admin\DisputeController::class)->name('disputes.update');
         });
 
+        Route::middleware(PermissionMiddleware::using(AdminPermission::ManageWithdrawals))->group(function () {
+            Route::get('withdrawals', [Admin\WithdrawalController::class, 'index'])->name('withdrawals.index');
+            Route::post('withdrawals/{withdrawalRequest}/payment', [Admin\WithdrawalController::class, 'pay'])->name('withdrawals.pay');
+            Route::put('withdrawals/{withdrawalRequest}/rejection', [Admin\WithdrawalController::class, 'reject'])->name('withdrawals.reject');
+        });
+
         Route::get('transactions', Admin\TransactionController::class)
             ->middleware(PermissionMiddleware::using(AdminPermission::ViewFinance))
             ->name('transactions.index');
@@ -100,7 +120,10 @@ Route::prefix('panel')->group(function () {
         });
 
         Route::middleware(PermissionMiddleware::using(AdminPermission::ManageModeration))->group(function () {
-            Route::get('moderation', Admin\ModerationController::class)->name('moderation.index');
+            Route::get('moderation', [Admin\ModerationController::class, 'index'])->name('moderation.index');
+            Route::get('moderation/fields', [Admin\ModerationController::class, 'fields'])->name('moderation.fields');
+            Route::get('moderation/violations', [Admin\ModerationController::class, 'violations'])->name('moderation.violations');
+            Route::get('moderation/portfolio', [Admin\ModerationController::class, 'portfolio'])->name('moderation.portfolio');
             Route::put('violations/{violation}', Admin\ViolationController::class)->name('violations.update');
             Route::put('portfolio-media/{portfolioMedia}', Admin\PortfolioMediaController::class)->name('portfolio-media.update');
             Route::put('freelancer-fields/{freelancerField}', Admin\FreelancerFieldController::class)->name('freelancer-fields.update');

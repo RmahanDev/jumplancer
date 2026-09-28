@@ -38,11 +38,11 @@ class DatabaseSeederTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $this->seed(DatabaseSeeder::class);
 
-        $this->assertSame(5, Role::count());
+        $this->assertSame(6, Role::count());
         $this->assertSame(12, Category::count());
         $this->assertSame(21, Skill::count());
         $this->assertSame(5, Badge::count());
-        $this->assertSame(7, PlatformSetting::count());
+        $this->assertSame(9, PlatformSetting::count());
     }
 
     public function test_reseeding_keeps_settings_changed_from_the_admin_dashboard(): void
