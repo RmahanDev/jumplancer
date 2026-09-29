@@ -333,6 +333,12 @@
     animation: jl-fade .2s ease both;
 }
 
+.jl-app.is-collapsed {
+    .jl-sidebar-brand-text {
+        display: none;
+    }
+}
+
 // Tablets and phones: the sidebar becomes an off-canvas drawer.
 @media (max-width: 991.98px) {
     .jl-app .jl-main,
