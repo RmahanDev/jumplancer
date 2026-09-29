@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\AdminPermission;
+use App\Enums\AssessmentScope;
 use App\Enums\Availability;
 use App\Enums\BudgetType;
 use App\Enums\CompanySize;
@@ -35,6 +36,7 @@ use App\Enums\ViolationAction;
 use App\Enums\ViolationSource;
 use App\Enums\ViolationType;
 use App\Enums\WithdrawalStatus;
+use App\Models\Assessment;
 use App\Models\BankCard;
 use App\Models\Category;
 use App\Models\CategoryBudgetRange;
@@ -45,6 +47,7 @@ use App\Models\EmployerSubscription;
 use App\Models\MentorshipProgram;
 use App\Models\Milestone;
 use App\Models\Plan;
+use App\Models\PlatformSetting;
 use App\Models\PortfolioItem;
 use App\Models\Project;
 use App\Models\Proposal;
@@ -52,6 +55,7 @@ use App\Models\Review;
 use App\Models\Skill;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\SkillExams;
 use App\Services\WalletLedger;
 use App\Support\BankCard as CardNumber;
 use App\Support\PersianText;
@@ -136,6 +140,7 @@ class DemoDataSeeder extends Seeder
             $this->marketplace();
             $this->mentoring();
             $this->withdrawals();
+            $this->exams();
             $this->learningContent();
             $this->violations();
             $this->lastLogins();
@@ -154,7 +159,7 @@ class DemoDataSeeder extends Seeder
         $admin->syncPermissions(AdminPermission::values());
 
         $support = $this->person('support', 'رضا کریمی', RoleName::Support, 120, '09120000102', 'پشتیبانی کاربران و منتورینگ.');
-        $support->syncPermissions([AdminPermission::ManageUsers->value, AdminPermission::ManageMentoring->value, AdminPermission::ManageModeration->value, AdminPermission::ManageWithdrawals->value]);
+        $support->syncPermissions([AdminPermission::ManageUsers->value, AdminPermission::ManageMentoring->value, AdminPermission::ManageModeration->value, AdminPermission::ManageWithdrawals->value, AdminPermission::ManageExams->value]);
 
         $finance = $this->person('finance', 'نگار حسینی', RoleName::Admin, 100, '09120000103', 'امور مالی و قراردادها.');
         $finance->syncPermissions([AdminPermission::ViewFinance->value, AdminPermission::ManageContracts->value, AdminPermission::ManageWithdrawals->value]);
@@ -280,6 +285,116 @@ class DemoDataSeeder extends Seeder
             'status' => $status,
             'verified_at' => $status === FreelancerFieldStatus::Active ? now() : null,
         ]));
+    }
+
+    // ---------------------------------------------------------------- skill exams
+
+    /**
+     * Exams from the exam builder and attempts at them, taken through the real exam flow: passes
+     * (verified skills), a fail, and a paid attempt voided for leaving the page twice.
+     */
+    private function exams(): void
+    {
+        $admin = $this->users['admin'];
+        $support = $this->users['support'];
+
+        PlatformSetting::where('setting_key', 'extra_field_exam_fee')->update(['setting_value' => '150000', 'updated_by' => $admin->id]);
+
+        $bank = [
+            'laravel' => ['web-development', 'آزمون مقدماتی لاراول', 'مسیرها، کنترلرها، Eloquent و Blade؛ برای کسی که اولین پروژه‌ی لاراولی‌اش را تحویل داده.', 15, 100, 60, true, $admin, [
+                ['کدام دستور مایگریشن‌های پروژه را اجرا می‌کند؟', 'دستورهای لاراول با artisan اجرا می‌شوند.', ['php artisan migrate', 'php artisan serve', 'composer dump-autoload', 'npm run build'], 0],
+                ['مسیرهای وب در کدام فایل تعریف می‌شوند؟', null, ['routes/web.php', 'config/app.php', 'app/Http/Kernel.php', 'resources/views/web.blade.php'], 0],
+                ['برای جلوگیری از Mass Assignment در مدل چه چیزی تعریف می‌شود؟', null, ['$casts', '$fillable یا $guarded', '$table', '$with'], 1],
+                ['کدام متد Eloquent رکوردها را همراه رابطه‌شان یک‌جا بارگذاری می‌کند؟', 'به مشکل N+1 فکر کن.', ['load()', 'with()', 'get()', 'pluck()'], 1],
+                ['در Blade خروجی امن (escape‌شده) با کدام نحو چاپ می‌شود؟', null, ['{!! $name !!}', '{{ $name }}', '<?= $name ?>', '@echo($name)'], 1],
+                ['اعتبارسنجی درخواست در یک کلاس جدا با کدام دستور ساخته می‌شود؟', null, ['make:request', 'make:rule', 'make:policy', 'make:middleware'], 0],
+            ]],
+            'wordpress' => ['web-development', 'آزمون وردپرس برای تازه‌کارها', 'قالب، افزونه و تنظیمات پایه‌ی یک سایت وردپرسی.', 10, 100, 50, true, $admin, [
+                ['تغییرات قالب را کجا بنویسیم که با به‌روزرسانی پاک نشود؟', null, ['مستقیم در قالب اصلی', 'در یک قالب فرزند (Child Theme)', 'در wp-config.php', 'در پوشه‌ی uploads'], 1],
+                ['اطلاعات اتصال به پایگاه داده در کدام فایل است؟', null, ['functions.php', 'wp-config.php', 'index.php', '.htaccess'], 1],
+                ['کدام تابع برای افزودن استایل به قالب توصیه می‌شود؟', 'اسمش با wp_enqueue شروع می‌شود.', ['wp_enqueue_style', 'add_style', 'include_css', 'wp_head_css'], 0],
+                ['پیوندهای یکتا (Permalinks) از کدام بخش پیشخوان تنظیم می‌شوند؟', null, ['نمایش', 'تنظیمات', 'ابزارها', 'کاربران'], 1],
+                ['برای ساخت فرم تماس معمولاً چه می‌کنیم؟', null, ['کد PHP در هسته', 'یک افزونه‌ی فرم', 'ویرایش پایگاه داده', 'تغییر .htaccess'], 1],
+            ]],
+            'figma' => ['ui-ux', 'آزمون مبانی فیگما', 'Auto Layout، کامپوننت‌ها و آماده‌سازی خروجی برای برنامه‌نویس.', 12, 20, 14, true, $support, [
+                ['برای چیدمان خودکار و واکنش‌گرا در فیگما از چه استفاده می‌شود؟', null, ['Auto Layout', 'Mask', 'Boolean groups', 'Plugins'], 0],
+                ['نسخه‌های مختلف یک دکمه (عادی، غیرفعال، هاور) را با چه می‌سازیم؟', null, ['Frame', 'Variants', 'Slice', 'Grid'], 1],
+                ['رنگ‌ها و فونت‌های مشترک را کجا تعریف می‌کنیم؟', 'تا با یک تغییر، همه‌جا عوض شوند.', ['Styles / Variables', 'Comments', 'Pages', 'Layers'], 0],
+                ['برنامه‌نویس اندازه‌ها و CSS را از کدام حالت می‌بیند؟', null, ['Prototype', 'Dev Mode (Inspect)', 'Presentation', 'FigJam'], 1],
+                ['برای خروجی گرفتن آیکن‌ها کدام قالب مناسب‌تر است؟', null, ['SVG', 'JPG', 'GIF', 'BMP'], 0],
+            ]],
+            'technical-seo' => ['seo', 'آزمون سئوی تکنیکال', 'نقشه‌ی سایت، robots و سرعت بارگذاری. (در حال بازبینی سؤال‌ها)', 10, 100, 70, false, $admin, [
+                ['فایل robots.txt چه کاری انجام می‌دهد؟', null, ['رتبه را بالا می‌برد', 'به خزنده‌ها می‌گوید کجا را نخزند', 'سایت را سریع می‌کند', 'بک‌لینک می‌سازد'], 1],
+                ['نقشه‌ی سایت XML برای چیست؟', null, ['معرفی صفحه‌ها به موتور جستجو', 'طراحی منو', 'پشتیبان‌گیری', 'امنیت فرم‌ها'], 0],
+                ['کدام تگ نسخه‌ی اصلی یک صفحه‌ی تکراری را مشخص می‌کند؟', null, ['noindex', 'canonical', 'hreflang', 'nofollow'], 1],
+                ['معیار LCP به چه چیزی مربوط است؟', null, ['سرعت بارگذاری بزرگ‌ترین محتوا', 'تعداد لینک‌ها', 'طول عنوان', 'تعداد کلمات'], 0],
+            ]],
+        ];
+
+        $exams = [];
+
+        foreach ($bank as $skill => [$category, $title, $description, $minutes, $total, $pass, $active, $author, $questions]) {
+            $exams[$skill] = $this->at(40, function () use ($skill, $category, $title, $description, $minutes, $total, $pass, $active, $author, $questions): Assessment {
+                $exam = new Assessment([
+                    'scope' => AssessmentScope::Skill,
+                    'category_id' => $this->categories[$category]->id,
+                    'skill_id' => $this->skills[$skill]->id,
+                    'title' => $title,
+                    'description' => $description,
+                    'time_limit_minutes' => $minutes,
+                    'total_score' => $total,
+                    'pass_score' => $pass,
+                    'is_active' => $active,
+                ]);
+                $exam->forceFill(['created_by' => $author->id])->save();
+
+                foreach ($questions as $position => [$body, $hint, $options, $correct]) {
+                    $question = $exam->questions()->create(['body' => $body, 'hint' => $hint, 'sort_order' => $position + 1]);
+
+                    foreach ($options as $index => $option) {
+                        $question->options()->create(['body' => $option, 'is_correct' => $index === $correct, 'sort_order' => $index + 1]);
+                    }
+                }
+
+                return $exam->load('questions.options');
+            });
+        }
+
+        // [freelancer, exam, days ago, right answers, left the page (times)]
+        $attempts = [
+            ['hossein', 'laravel', 30, 6, 0],
+            ['freelancer', 'laravel', 21, 5, 0],
+            ['zahra', 'figma', 18, 5, 1],
+            ['freelancer', 'wordpress', 6, 2, 0],
+            ['ali', 'laravel', 2, 2, 0],
+            ['freelancer', 'figma', 3, 3, 2],
+        ];
+
+        $exams = collect($exams);
+        $service = app(SkillExams::class);
+
+        foreach ($attempts as [$username, $skill, $daysAgo, $right, $left]) {
+            $freelancer = $this->users[$username];
+            $exam = $exams[$skill];
+
+            $this->at($daysAgo, function () use ($service, $freelancer, $exam, $right, $left): void {
+                if ((int) $freelancer->ensureWallet()->fresh()->balance < 150_000) {
+                    $this->ledger->deposit($freelancer, 200_000);
+                }
+
+                $attempt = $service->start($freelancer, $exam);
+                $service->recordAnswers($attempt, $exam->questions->mapWithKeys(fn ($question, $index) => [
+                    $question->id => $question->options->firstWhere('is_correct', $index < $right)->id,
+                ])->all());
+
+                for ($i = 0; $i < $left; $i++) {
+                    $attempt = $service->recordViolation($attempt, 'hidden');
+                }
+
+                Carbon::setTestNow(now()->addMinutes(min(9, $exam->time_limit_minutes - 1)));
+                $service->finish($attempt);
+            });
+        }
     }
 
     // ---------------------------------------------------------------- catalog and plans
@@ -487,7 +602,7 @@ class DemoDataSeeder extends Seeder
         $hired10 = $this->proposal($p10, 'zahra', 22_000_000, 45, ProposalStatus::Pending, 'سلام، دیزاین سیستم و ۲۵ صفحه را در سه مرحله تحویل می‌دهم و در پایان پروتوتایپ کامل در فیگما آماده است.', 85, mentor: true);
 
         $this->proposal($p3, 'freelancer', 7_000_000, 20, ProposalStatus::Shortlisted, 'سلام، برای بهبود سرعت، تصاویر و کش را بهینه می‌کنم، اسکریپت‌های اضافه را حذف می‌کنم و خطاهای سرچ کنسول را با گزارش قبل و بعد رفع می‌کنم.', 10, feedbackBy: 'mentor', feedback: 'عالی! فقط ابزارهایی که برای اندازه‌گیری استفاده می‌کنی (PageSpeed و Search Console) را هم نام ببر.');
-        $this->proposal($p3, 'ali', 6_000_000, 25, ProposalStatus::Pending, 'سلام، در حال یادگیری سئوی تکنیکال هستم و با کمک منتور پروژه را مرحله‌به‌مرحله جلو می‌برم.', 9, mentor: true);
+        $this->proposal($p3, 'ali', 6_000_000, 25, ProposalStatus::Pending, 'سلام، در حال یادگیری سئوی تکنیکال هستم و پروژه را مرحله‌به‌مرحله و با گزارش منظم جلو می‌برم.', 9, mentor: true);
         $this->proposal($p3, 'narges', 8_500_000, 21, ProposalStatus::Pending, 'سلام، علاوه بر سئوی تکنیکال، برای شبکه‌های اجتماعی هم برنامه‌ی محتوا پیشنهاد می‌دهم.', 7);
 
         $this->proposal($p4, 'hossein', 50_000_000, 70, ProposalStatus::Pending, 'سلام، دو اپ فلاتر مشابه تحویل داده‌ام؛ معماری تمیز، تست و انتشار در استورها را هم انجام می‌دهم.', 4);
@@ -644,6 +759,7 @@ class DemoDataSeeder extends Seeder
                 'mentorship_included' => $mentorship,
                 'is_free_mentorship' => $free,
                 'fee_percent' => $mentorship && ! $free ? 25 : 20,
+                'mentor_share_percent' => $mentorship ? 3.5 : 0,
                 'status' => ContractStatus::Active,
                 'started_at' => now(),
             ]);

@@ -8,7 +8,7 @@ import { Badge } from '../../../Components/UI/Badge';
 import { useModal } from '../../../hooks/useModal';
 import { formatMoney, formatNumber, formatRelative } from '../../../lib/format';
 import { label, SETTINGS } from '../../../lib/labels';
-import { fillRoute } from '../../../lib/text';
+import { fillRoute, toLatinDigits } from '../../../lib/text';
 
 function choiceLabel(key, value) {
     const meta = SETTINGS[key];
@@ -36,6 +36,8 @@ function displayValue(setting) {
             return Number(setting.setting_value) === 0 ? 'رایگان' : formatMoney(setting.setting_value);
         case 'int':
             return `${formatNumber(setting.setting_value)} ${meta.unit ?? ''}`;
+        case 'percent':
+            return `${formatNumber(Number(setting.setting_value))}٪`;
         case 'bool':
             return setting.typed_value ? 'روشن' : 'خاموش';
         default:
@@ -84,6 +86,27 @@ function SettingForm({ modal, choices, routes }) {
 
                 if (setting.value_type === 'money') {
                     return <NumberInput form={form} name="setting_value" label="مبلغ" money hint="خالی یعنی تعیین نشده؛ صفر یعنی رایگان." />;
+                }
+
+                if (setting.value_type === 'percent') {
+                    return (
+                        <TextInput
+                            name="setting_value"
+                            label="درصد"
+                            required
+                            ltr
+                            unit="٪"
+                            inputMode="decimal"
+                            placeholder="3.5"
+                            hint="تا دو رقم اعشار، مثلاً ۳٫۵"
+                            value={form.data.setting_value}
+                            error={form.errors.setting_value}
+                            onChange={(value) => {
+                                form.setData('setting_value', toLatinDigits(value).replace(/[٫,]/g, '.').replace(/[^\d.]/g, ''));
+                                form.clearErrors('setting_value');
+                            }}
+                        />
+                    );
                 }
 
                 if (setting.value_type === 'int') {

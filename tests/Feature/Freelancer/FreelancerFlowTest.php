@@ -115,7 +115,7 @@ class FreelancerFlowTest extends TestCase
         $payload = fn ($project) => ['project_id' => $project->id, 'cover_letter' => $this->letter(), 'proposed_price' => 5_000_000, 'delivery_days' => 7];
 
         $this->post(route('freelancer.proposals.store'), $payload($webProject))
-            ->assertSessionHasErrors(['project_id' => 'برای پیشنهاد دادن روی پروژه‌های این حوزه، اول آن را در «حوزه‌های کاری» فعال کن.']);
+            ->assertSessionHasErrors(['project_id' => 'برای پیشنهاد دادن روی پروژه‌های این حوزه، اول آن را در «حوزه‌ها و مهارت‌ها» فعال کن.']);
         $this->post(route('freelancer.proposals.store'), $payload($closedProject))
             ->assertSessionHasErrors(['project_id' => 'این پروژه پیشنهاد جدید نمی‌پذیرد.']);
         $this->post(route('freelancer.proposals.store'), [...$payload($webProject), 'cover_letter' => 'کوتاه'])

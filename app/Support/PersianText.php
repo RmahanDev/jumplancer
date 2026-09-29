@@ -54,6 +54,16 @@ class PersianText
     }
 
     /**
+     * A percentage without needless decimals: 20 -> "۲۰", 3.5 -> "۳٫۵".
+     */
+    public static function percent(int|float $value): string
+    {
+        $decimals = fmod((float) $value, 1.0) === 0.0 ? 0 : (fmod((float) $value * 10, 1.0) === 0.0 ? 1 : 2);
+
+        return self::number($value, $decimals);
+    }
+
+    /**
      * Login identifier (username, email or mobile) in its canonical, lower-case form.
      */
     public static function normalizeIdentifier(?string $value): string

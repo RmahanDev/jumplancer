@@ -11,4 +11,5 @@ enum SettingValueType: string
     case Money = 'money';
     case Text = 'text';
     case Bool = 'bool';
+    case Percent = 'percent';
 }

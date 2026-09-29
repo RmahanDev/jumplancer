@@ -89,7 +89,7 @@ class ModerationController extends Controller
 
         return Inertia::render('Admin/Moderation/Portfolio', [
             'media' => PortfolioMediaResource::collection(
-                PortfolioMedia::with('portfolioItem.freelancer')
+                PortfolioMedia::with(['portfolioItem.freelancer', 'reviewer'])
                     ->when($status !== 'all', fn (Builder $query) => $query->where('status', $status))
                     ->latest()
                     ->latest('id')

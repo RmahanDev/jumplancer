@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\RoleName;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Enums\WithdrawalStatus;
@@ -9,6 +10,7 @@ use App\Http\Resources\BankCardResource;
 use App\Http\Resources\TransactionResource;
 use App\Http\Resources\WithdrawalRequestResource;
 use App\Models\PlatformSetting;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -16,6 +18,21 @@ use Inertia\Response;
 
 class WalletController extends Controller
 {
+    /**
+     * Ledger types a user can have. Mentoring and exams stay out of employers' filters: employers
+     * never see that the freelancers they hire work with a mentor.
+     *
+     * @return list<TransactionType>
+     */
+    private function typesFor(User $user): array
+    {
+        $hidden = $user->hasAnyRole([RoleName::Freelancer->value, RoleName::Mentor->value])
+            ? []
+            : [TransactionType::MentorPayout, TransactionType::MentorshipFee, TransactionType::ExamFee];
+
+        return array_values(array_filter(TransactionType::cases(), fn (TransactionType $type): bool => ! in_array($type, $hidden, true)));
+    }
+
     /**
      * Balance, escrow, payout cards, withdrawal requests and the ledger of the signed-in user's wallet.
      */
@@ -48,7 +65,7 @@ class WalletController extends Controller
             ],
             'transactions' => TransactionResource::collection($transactions),
             'filters' => ['type' => $filters['type'] ?? null],
-            'types' => array_column(TransactionType::cases(), 'value'),
+            'types' => array_column($this->typesFor($user), 'value'),
             'sandbox' => [
                 'enabled' => (bool) config('jumplancer.payments.sandbox'),
                 'max' => config('jumplancer.payments.max_sandbox_deposit'),

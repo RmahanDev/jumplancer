@@ -79,9 +79,10 @@ class DashboardController extends Controller
     {
         return $this->revenueQuery()
             ->where('created_at', '>=', $since)
-            ->get(['amount', 'created_at'])
+            ->get(['type', 'amount', 'created_at'])
             ->map(fn (Transaction $transaction): array => [
-                'amount' => abs($transaction->amount),
+                // Fees, plans and exam fees are income; the mentors' share paid out of the fees is not.
+                'amount' => $transaction->type === TransactionType::MentorPayout ? -abs($transaction->amount) : abs($transaction->amount),
                 'created_at' => $transaction->created_at->toImmutable(),
             ]);
     }
@@ -92,7 +93,7 @@ class DashboardController extends Controller
     private function revenueQuery(): Builder
     {
         return Transaction::query()
-            ->whereIn('type', [TransactionType::Fee, TransactionType::PlanPurchase])
+            ->whereIn('type', [TransactionType::Fee, TransactionType::PlanPurchase, TransactionType::ExamFee, TransactionType::MentorPayout])
             ->where('status', TransactionStatus::Succeeded);
     }
 

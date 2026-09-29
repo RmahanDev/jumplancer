@@ -21,6 +21,7 @@ enum AdminPermission: string
     case ManageContent = 'content.manage';
     case ManageSettings = 'settings.manage';
     case ManageWithdrawals = 'withdrawals.manage';
+    case ManageExams = 'exams.manage';
 
     /**
      * What a new support agent can do until someone with "admins.manage" changes it.

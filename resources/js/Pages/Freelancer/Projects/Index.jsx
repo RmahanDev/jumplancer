@@ -32,7 +32,7 @@ export default function Index({ projects, filters: initialFilters, categories, a
                 description="پروژه‌های باز حوزه‌های فعالت؛ پروژه‌های مناسب تازه‌کار با منتور همراه‌اند."
                 actions={
                     <Link href={routes.fields} className="btn btn-ghost">
-                        <i className="bi bi-bullseye" /> حوزه‌های کاری من
+                        <i className="bi bi-bullseye" /> حوزه‌ها و مهارت‌های من
                     </Link>
                 }
             />

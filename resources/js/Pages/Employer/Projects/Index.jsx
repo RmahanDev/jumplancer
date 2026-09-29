@@ -17,6 +17,7 @@ import { confirm } from '../../../Components/UI/ConfirmDialog';
 import DataTable from '../../../Components/UI/DataTable';
 import { DropdownDivider, DropdownItem } from '../../../Components/UI/Dropdown';
 import EmptyState from '../../../Components/UI/EmptyState';
+import Modal, { ModalBody } from '../../../Components/UI/Modal';
 import RowActions from '../../../Components/UI/RowActions';
 import SearchInput from '../../../Components/UI/SearchInput';
 import Tabs from '../../../Components/UI/Tabs';
@@ -141,7 +142,7 @@ function ProjectForm({ modal, categories, budgetTypes, canPublish, routes }) {
                         )}
                         <JalaliDateInput form={form} name="deadline" label="مهلت تحویل" min={tomorrow()} className="col-md-6" />
                         <div className="col-md-6 d-flex align-items-end">
-                            <Switch form={form} name="is_beginner_friendly" className="w-100" label="مناسب تازه‌کارها" description="تازه‌کارها این پروژه را بالاتر می‌بینند؛ اگر بخواهند، خودشان در پیشنهاد منتور درخواست می‌کنند." />
+                            <Switch form={form} name="is_beginner_friendly" className="w-100" label="مناسب تازه‌کارها" description="فریلنسرهای تازه‌کار این پروژه را بالاتر می‌بینند." />
                         </div>
                         <ChipPicker
                             form={form}
@@ -169,10 +170,33 @@ function ProjectForm({ modal, categories, budgetTypes, canPublish, routes }) {
     );
 }
 
+/** Shown instead of the project form when there is no free posting and no plan quota left. */
+function NoSubscription({ modal, plansUrl, onDraft }) {
+    return (
+        <Modal open={modal.open} onClose={modal.close} title="اشتراک فعالی نداری" subtitle="برای ثبت پروژه‌ی جدید باید اشتراک بخری." icon="bi-gem" tone="warning">
+            <ModalBody>
+                <div className="jl-callout is-warning mb-3">
+                    <i className="bi bi-info-circle" /> دو پروژه‌ی رایگانت را استفاده کرده‌ای و اشتراک فعالی (یا سهمیه‌ی باقی‌مانده‌ای) نداری. با خرید اشتراک، پروژه‌ی بعدی بلافاصله برای بررسی و انتشار ارسال می‌شود.
+                </div>
+                <div className="d-grid gap-2">
+                    <Link href={plansUrl} className="btn btn-primary">
+                        <i className="bi bi-gem" /> خرید اشتراک
+                    </Link>
+                    <button type="button" className="btn btn-ghost" onClick={onDraft}>
+                        <i className="bi bi-file-earmark" /> فعلاً به‌صورت پیش‌نویس نگه دارم
+                    </button>
+                </div>
+            </ModalBody>
+        </Modal>
+    );
+}
+
 export default function Index({ projects, filters: initialFilters, statusCounts, categories, budgetTypes, posting, routes }) {
     const filters = useFilters(initialFilters);
     const editor = useModal();
+    const noPlan = useModal();
     const canPublish = posting.next !== null;
+    const create = () => (canPublish ? editor.show(null) : noPlan.show(null));
     const total = Object.values(statusCounts).reduce((sum, count) => sum + Number(count), 0);
 
     // The dashboard's "ثبت پروژه" button links here with ?create=1.
@@ -180,7 +204,7 @@ export default function Index({ projects, filters: initialFilters, statusCounts,
         const params = new URLSearchParams(window.location.search);
 
         if (params.get('create') === '1') {
-            editor.show(null);
+            create();
             params.delete('create');
             const query = params.toString();
             window.history.replaceState(window.history.state, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
@@ -188,6 +212,12 @@ export default function Index({ projects, filters: initialFilters, statusCounts,
     }, []);
 
     const publish = async (project) => {
+        if (!canPublish && !project.submitted_at) {
+            noPlan.show(project);
+
+            return;
+        }
+
         const ok = await confirm({
             title: 'ارسال برای بررسی؟',
             message:
@@ -272,7 +302,7 @@ export default function Index({ projects, filters: initialFilters, statusCounts,
             <PageHeader
                 title="پروژه‌های من"
                 description="پیش‌نویس بساز، برای بررسی بفرست و پیشنهادهای رسیده را مقایسه کن."
-                primary={{ label: 'پروژه‌ی جدید', icon: 'bi-plus-lg', onClick: () => editor.show(null) }}
+                primary={{ label: 'پروژه‌ی جدید', icon: 'bi-plus-lg', onClick: create }}
             />
 
             <PostingBanner next={posting.next} plansUrl={routes.plans} secondFreeUntil={posting.second_free_until} subscription={posting.subscription} />
@@ -299,7 +329,7 @@ export default function Index({ projects, filters: initialFilters, statusCounts,
                             title="پروژه‌ای پیدا نشد"
                             description="اولین پروژه‌ات رایگان است؛ همین حالا ثبتش کن."
                             action={
-                                <button type="button" className="btn btn-primary btn-sm" onClick={() => editor.show(null)}>
+                                <button type="button" className="btn btn-primary btn-sm" onClick={create}>
                                     <i className="bi bi-plus-lg" /> ثبت پروژه
                                 </button>
                             }
@@ -367,6 +397,18 @@ export default function Index({ projects, filters: initialFilters, statusCounts,
             </TableCard>
 
             <ProjectForm modal={editor} categories={categories} budgetTypes={budgetTypes} canPublish={canPublish} routes={routes} />
+            <NoSubscription
+                modal={noPlan}
+                plansUrl={routes.plans}
+                onDraft={() => {
+                    const draft = noPlan.record;
+                    noPlan.close();
+
+                    if (!draft) {
+                        window.setTimeout(() => editor.show(null), 160);
+                    }
+                }}
+            />
         </>
     );
 }

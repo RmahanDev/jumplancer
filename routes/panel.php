@@ -114,6 +114,11 @@ Route::prefix('panel')->group(function () {
             Route::resource('tickets', Admin\TicketController::class)->only(['index', 'update']);
         });
 
+        Route::middleware(PermissionMiddleware::using(AdminPermission::ManageExams))->group(function () {
+            Route::resource('exams', Admin\ExamController::class)->except(['show'])->parameters(['exams' => 'assessment']);
+            Route::put('exams/{assessment}/status', [Admin\ExamController::class, 'status'])->name('exams.status');
+        });
+
         Route::middleware(PermissionMiddleware::using(AdminPermission::ManageContent))->group(function () {
             Route::resource('contents', Admin\LearningContentController::class)->only(['index', 'store', 'update', 'destroy'])
                 ->parameters(['contents' => 'learningContent']);
@@ -161,6 +166,13 @@ Route::prefix('panel')->group(function () {
             ->parameters(['portfolio' => 'portfolioItem']);
         Route::resource('fields', Freelancer\FieldController::class)->only(['index', 'store', 'destroy'])
             ->parameters(['fields' => 'freelancerField']);
+
+        // Skill exams: start (pays the fee), the exam page, autosaved answers, leaving the page, submit.
+        Route::post('exams/{assessment}/attempts', [Freelancer\ExamController::class, 'start'])->name('exams.start');
+        Route::get('exam-attempts/{attempt}', [Freelancer\ExamController::class, 'show'])->name('attempts.show');
+        Route::put('exam-attempts/{attempt}/answers', [Freelancer\ExamController::class, 'answers'])->name('attempts.answers');
+        Route::post('exam-attempts/{attempt}/violations', [Freelancer\ExamController::class, 'violation'])->name('attempts.violation');
+        Route::post('exam-attempts/{attempt}/submit', [Freelancer\ExamController::class, 'submit'])->name('attempts.submit');
     });
 
     // Employer: post projects, hire from proposals, fund and release milestones.

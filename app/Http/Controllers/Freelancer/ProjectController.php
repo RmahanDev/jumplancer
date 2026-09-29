@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\ProjectResource;
 use App\Models\Category;
+use App\Models\PlatformSetting;
 use App\Models\Project;
 use App\Support\PersianText;
 use Illuminate\Database\Eloquent\Builder;
@@ -56,6 +57,7 @@ class ProjectController extends Controller
 
         return Inertia::render('Freelancer/Projects/Index', [
             'projects' => ProjectResource::collection($projects),
+            'fees' => PlatformSetting::fees(),
             'filters' => [
                 'search' => $filters['search'] ?? null,
                 'category' => $filters['category'] ?? null,

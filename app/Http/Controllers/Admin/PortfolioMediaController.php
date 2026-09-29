@@ -13,6 +13,7 @@ class PortfolioMediaController extends Controller
 {
     /**
      * Approve a portfolio file for employers to see, or reject it (e.g. it shows contact details).
+     * Decisions can be revised later: an approved file can be rejected and a rejected one approved.
      */
     public function __invoke(Request $request, PortfolioMedia $portfolioMedia): RedirectResponse
     {

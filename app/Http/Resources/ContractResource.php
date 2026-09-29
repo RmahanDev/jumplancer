@@ -20,14 +20,17 @@ class ContractResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // Employers never learn whether the freelancer has a mentor (nor the fee, which would give it away).
+        $forEmployer = $request->routeIs('employer.*');
+
         return [
             'id' => $this->id,
             'amount' => $this->amount,
             'deposit_amount' => $this->deposit_amount,
             'deposit_balance' => $this->deposit_balance,
-            'fee_percent' => $this->fee_percent,
-            'mentorship_included' => $this->mentorship_included,
-            'is_free_mentorship' => $this->is_free_mentorship,
+            'fee_percent' => $this->unless($forEmployer, fn () => $this->fee_percent),
+            'mentorship_included' => $this->unless($forEmployer, fn () => $this->mentorship_included),
+            'is_free_mentorship' => $this->unless($forEmployer, fn () => $this->is_free_mentorship),
             'status' => $this->status->value,
             'started_at' => $this->started_at?->toIso8601String(),
             'completed_at' => $this->completed_at?->toIso8601String(),
@@ -38,7 +41,7 @@ class ContractResource extends JsonResource
             ]),
             'employer' => $this->whenLoaded('employer', fn () => UserResource::summary($this->employer)),
             'freelancer' => $this->whenLoaded('freelancer', fn () => UserResource::summary($this->freelancer)),
-            'mentor' => $this->whenLoaded('mentor', fn () => UserResource::summary($this->mentor)),
+            'mentor' => $this->when(! $forEmployer && $this->relationLoaded('mentor'), fn () => UserResource::summary($this->mentor)),
             'milestones' => MilestoneResource::collection($this->whenLoaded('milestones')),
             'progress' => $this->whenLoaded('milestones', fn (): array => $this->progress()),
             'reviewed' => $this->when(isset($this->reviewed_by_viewer), fn (): bool => (bool) $this->reviewed_by_viewer),

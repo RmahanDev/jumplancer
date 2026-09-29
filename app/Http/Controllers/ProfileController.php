@@ -6,6 +6,7 @@ use App\Enums\Availability;
 use App\Enums\CompanySize;
 use App\Enums\MentoringStyle;
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\Skill;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -87,6 +88,8 @@ class ProfileController extends Controller
                 'readiness_score' => $profile->readiness_score,
                 'hourly_rate' => $profile->hourly_rate,
                 'availability' => $profile->availability->value,
+                'verified_skills' => $user->skills()->wherePivot('is_verified', true)->orderBy('name')->get(['skills.id', 'skills.name'])
+                    ->map(fn (Skill $skill): array => ['id' => $skill->id, 'name' => $skill->name])->values(),
             ];
         }
 

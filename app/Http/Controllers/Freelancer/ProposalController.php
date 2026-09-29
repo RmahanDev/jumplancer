@@ -6,6 +6,7 @@ use App\Enums\ProposalStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Freelancer\SaveProposalRequest;
 use App\Http\Resources\ProposalResource;
+use App\Models\PlatformSetting;
 use App\Models\Project;
 use App\Models\Proposal;
 use Illuminate\Http\RedirectResponse;
@@ -33,6 +34,7 @@ class ProposalController extends Controller
 
         return Inertia::render('Freelancer/Proposals/Index', [
             'proposals' => ProposalResource::collection($proposals),
+            'fees' => PlatformSetting::fees(),
             'filters' => ['status' => $status],
             'statusCounts' => $freelancer->proposals()->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status'),
             'routes' => [

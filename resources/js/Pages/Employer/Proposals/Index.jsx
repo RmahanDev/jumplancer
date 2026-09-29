@@ -39,8 +39,9 @@ function HireForm({ modal, routes, hiring }) {
             method="post"
             url={proposal ? fillRoute(routes.hire, proposal.id) : ''}
             initial={{ accept_deposit_terms: false }}
-            submitLabel={`پرداخت ${formatMoney(deposit)} امانت و استخدام`}
-            submitIcon="bi-shield-lock"
+            transform={(data) => ({ ...data, pay_shortfall: missing > 0 })}
+            submitLabel={missing > 0 ? `پرداخت ${formatMoney(missing)} و استخدام` : `پرداخت ${formatMoney(deposit)} امانت و استخدام`}
+            submitIcon={missing > 0 ? 'bi-credit-card' : 'bi-shield-lock'}
         >
             {(form) =>
                 proposal && (
@@ -52,16 +53,6 @@ function HireForm({ modal, routes, hiring }) {
                             <dd>{formatNumber(proposal.delivery_days)} روز</dd>
                             <dt>سطح فریلنسر</dt>
                             <dd>{proposal.freelancer?.level ? <StatusBadge group="level" value={proposal.freelancer.level} /> : '—'}</dd>
-                            <dt>منتور</dt>
-                            <dd>
-                                {proposal.mentorship_requested ? (
-                                    <Badge tone="info" icon="bi-mortarboard">
-                                        فریلنسر منتور خواسته؛ یک منتور همراهش می‌شود
-                                    </Badge>
-                                ) : (
-                                    'بدون منتور'
-                                )}
-                            </dd>
                         </dl>
 
                         <section className="jl-deposit">
@@ -83,11 +74,18 @@ function HireForm({ modal, routes, hiring }) {
                                     موجودی کیف پول: <strong>{formatMoney(hiring.balance)}</strong>
                                 </span>
                                 {missing > 0 && (
-                                    <Link href={routes.wallet} className="text-danger fw-semibold">
-                                        <i className="bi bi-exclamation-circle" /> {formatMoney(missing)} کم داری — شارژ کیف پول
-                                    </Link>
+                                    <span className="text-danger fw-semibold">
+                                        <i className="bi bi-exclamation-circle" /> {formatMoney(missing)} کم داری
+                                    </span>
                                 )}
                             </div>
+                            {missing > 0 && (
+                                <div className="jl-callout is-primary small">
+                                    <i className="bi bi-credit-card" /> با زدن دکمه‌ی استخدام، <strong>{formatMoney(missing)}</strong> کسری از درگاه پرداخت به کیف پولت واریز می‌شود
+                                    {hiring.balance > 0 ? ` و همراه ${formatMoney(Math.min(hiring.balance, deposit))} موجودی فعلی` : ''}، مبلغ امانت بلوکه می‌شود و استخدام در همان لحظه انجام می‌شود. اگر ترجیح می‌دهی،{' '}
+                                    <Link href={routes.wallet}>اول کیف پولت را جدا شارژ کن</Link>.
+                                </div>
+                            )}
                         </section>
 
                         <div>
@@ -177,11 +175,11 @@ export default function Index({ proposals, filters: initialFilters, projects, hi
                                             <span className="jl-chip">
                                                 <i className="bi bi-clock" /> {formatNumber(proposal.delivery_days)} روز
                                             </span>
-                                            {proposal.mentorship_requested && (
-                                                <span className="jl-chip">
-                                                    <i className="bi bi-mortarboard" /> با منتور
-                                                </span>
-                                            )}
+                                            {proposal.freelancer?.verified_skills?.map((skill) => (
+                                                <Badge key={skill.id} tone="success" icon="bi-patch-check-fill">
+                                                    <span className="ltr d-inline-block">{skill.name}</span>
+                                                </Badge>
+                                            ))}
                                         </div>
                                         {proposal.freelancer?.readiness_score !== null && proposal.freelancer?.readiness_score !== undefined && (
                                             <div>
@@ -196,14 +194,6 @@ export default function Index({ proposals, filters: initialFilters, projects, hi
                                             <summary>متن پیشنهاد</summary>
                                             <div className="jl-text-block mt-2">{proposal.cover_letter}</div>
                                         </details>
-                                        {proposal.mentor_feedback && (
-                                            <div className="jl-feedback">
-                                                <i className="bi bi-mortarboard" />
-                                                <div className="small">
-                                                    <strong>نظر منتور:</strong> {proposal.mentor_feedback}
-                                                </div>
-                                            </div>
-                                        )}
                                         <div className="mt-auto d-flex flex-wrap gap-2">
                                             {open && (
                                                 <>
