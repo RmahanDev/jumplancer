@@ -331,6 +331,13 @@ class ReviewAndModerationTest extends TestCase
         $this->assertSame(ModerationStatus::Approved, $media->fresh()->status);
         $this->assertNull($media->fresh()->rejection_reason);
         $this->assertSame($this->admin->id, $media->fresh()->reviewed_by);
+
+        // Second thoughts: an approved file can be rejected again, with a reason.
+        $this->put(route('admin.portfolio-media.update', $media), ['status' => 'rejected', 'rejection_reason' => 'بعداً شماره‌ی تماس در گوشه‌ی تصویر پیدا شد'])->assertSessionHasNoErrors();
+        $this->assertSame(ModerationStatus::Rejected, $media->fresh()->status);
+
+        $this->get(route('admin.moderation.portfolio', ['status' => 'rejected']))
+            ->assertInertia(fn (Assert $page) => $page->where('media.data.0.id', $media->id)->where('media.data.0.reviewer.id', $this->admin->id));
     }
 
     public function test_field_exam_results_activate_or_reject_the_field(): void

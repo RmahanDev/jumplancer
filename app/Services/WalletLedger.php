@@ -8,6 +8,7 @@ use App\Enums\SubscriptionStatus;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Enums\WithdrawalStatus;
+use App\Models\AssessmentAttempt;
 use App\Models\BankCard;
 use App\Models\Contract;
 use App\Models\EmployerSubscription;
@@ -175,34 +176,70 @@ class WalletLedger
                 throw ValidationException::withMessages(['milestone' => __('Only delivered milestones can be released.')]);
             }
 
-            $contract = $milestone->contract;
-            $employerWallet = $this->lockWalletOf($contract->employer_id);
-            $freelancerWallet = $this->lockWalletOf($contract->freelancer_id);
-            $fee = intdiv($milestone->amount * $contract->fee_percent, 100);
-
-            $employerWallet->decrement('held_balance', min($employerWallet->held_balance, $milestone->amount));
-            $freelancerWallet->increment('balance', $milestone->amount - $fee);
-
-            $freelancerWallet->transactions()->create([
-                'contract_id' => $contract->id,
-                'milestone_id' => $milestone->id,
-                'type' => TransactionType::EscrowRelease,
-                'amount' => $milestone->amount,
-                'status' => TransactionStatus::Succeeded,
-                'description' => __('Payment for milestone: :title', ['title' => $milestone->title]),
-            ]);
-
-            $freelancerWallet->transactions()->create([
-                'contract_id' => $contract->id,
-                'milestone_id' => $milestone->id,
-                'type' => TransactionType::Fee,
-                'amount' => -$fee,
-                'status' => TransactionStatus::Succeeded,
-                'description' => __('Platform fee (:percent%)', ['percent' => PersianText::number($contract->fee_percent)]),
-            ]);
+            $this->payOutOfEscrow($milestone->contract, $milestone->amount, __('Payment for milestone: :title', ['title' => $milestone->title]), $milestone);
 
             $milestone->update(['status' => MilestoneStatus::Released]);
         });
+    }
+
+    /**
+     * Money leaves the employer's escrow for the freelancer: the freelancer is credited the amount
+     * and charged the contract's fee; the mentor of the contract (if any) is paid their share of
+     * the amount out of that fee, and the rest of the fee is the platform's income.
+     */
+    private function payOutOfEscrow(Contract $contract, int $amount, string $description, ?Milestone $milestone = null): void
+    {
+        $employerWallet = $this->lockWalletOf($contract->employer_id);
+        $freelancerWallet = $this->lockWalletOf($contract->freelancer_id);
+        $fee = self::percentOf($amount, $contract->fee_percent);
+
+        $employerWallet->decrement('held_balance', min($employerWallet->held_balance, $amount));
+        $freelancerWallet->increment('balance', $amount - $fee);
+
+        $freelancerWallet->transactions()->create([
+            'contract_id' => $contract->id,
+            'milestone_id' => $milestone?->id,
+            'type' => TransactionType::EscrowRelease,
+            'amount' => $amount,
+            'status' => TransactionStatus::Succeeded,
+            'description' => $description,
+        ]);
+
+        $freelancerWallet->transactions()->create([
+            'contract_id' => $contract->id,
+            'milestone_id' => $milestone?->id,
+            'type' => TransactionType::Fee,
+            'amount' => -$fee,
+            'status' => TransactionStatus::Succeeded,
+            'description' => __('Platform fee (:percent%)', ['percent' => PersianText::percent($contract->fee_percent)]),
+        ]);
+
+        $share = $contract->mentor_id !== null ? self::percentOf($amount, $contract->mentor_share_percent) : 0;
+
+        if ($share > 0) {
+            $mentorWallet = $this->lockWalletOf($contract->mentor_id);
+            $mentorWallet->increment('balance', $share);
+
+            $mentorWallet->transactions()->create([
+                'contract_id' => $contract->id,
+                'milestone_id' => $milestone?->id,
+                'type' => TransactionType::MentorPayout,
+                'amount' => $share,
+                'status' => TransactionStatus::Succeeded,
+                'description' => __('Mentor share (:percent%) of: :title', [
+                    'percent' => PersianText::percent($contract->mentor_share_percent),
+                    'title' => $milestone?->title ?? $contract->project()->value('title'),
+                ]),
+            ]);
+        }
+    }
+
+    /**
+     * A percentage (up to two decimals) of an amount in whole Toman, rounded down.
+     */
+    public static function percentOf(int $amount, float $percent): int
+    {
+        return intdiv($amount * (int) round($percent * 100), 10000);
     }
 
     /**
@@ -297,28 +334,7 @@ class WalletLedger
             return 0;
         }
 
-        $employerWallet = $this->lockWalletOf($contract->employer_id);
-        $freelancerWallet = $this->lockWalletOf($contract->freelancer_id);
-        $fee = intdiv($amount * $contract->fee_percent, 100);
-
-        $employerWallet->decrement('held_balance', min($employerWallet->held_balance, $amount));
-        $freelancerWallet->increment('balance', $amount - $fee);
-
-        $freelancerWallet->transactions()->create([
-            'contract_id' => $contract->id,
-            'type' => TransactionType::EscrowRelease,
-            'amount' => $amount,
-            'status' => TransactionStatus::Succeeded,
-            'description' => __('Good-faith deposit paid by expert decision: :title', ['title' => $contract->project->title]),
-        ]);
-
-        $freelancerWallet->transactions()->create([
-            'contract_id' => $contract->id,
-            'type' => TransactionType::Fee,
-            'amount' => -$fee,
-            'status' => TransactionStatus::Succeeded,
-            'description' => __('Platform fee (:percent%)', ['percent' => PersianText::number($contract->fee_percent)]),
-        ]);
+        $this->payOutOfEscrow($contract, $amount, __('Good-faith deposit paid by expert decision: :title', ['title' => $contract->project->title]));
 
         $contract->update(['deposit_balance' => 0]);
 
@@ -421,6 +437,36 @@ class WalletLedger
                 'processed_by' => $staff?->id,
                 'processed_at' => now(),
             ])->save();
+        });
+    }
+
+    /**
+     * Pay a skill exam from the freelancer's wallet when the attempt starts. The fee is not
+     * returned when the attempt is failed or voided (leaving the exam page twice).
+     *
+     * @throws ValidationException
+     */
+    public function chargeExamFee(User $freelancer, AssessmentAttempt $attempt, int $amount): void
+    {
+        DB::transaction(function () use ($freelancer, $attempt, $amount): void {
+            $wallet = $this->lockWalletOf($freelancer);
+
+            if ($wallet->balance < $amount) {
+                throw ValidationException::withMessages(['exam' => __('This exam costs :fee Toman. Top up :amount Toman first.', [
+                    'fee' => PersianText::number($amount),
+                    'amount' => PersianText::number($amount - $wallet->balance),
+                ])]);
+            }
+
+            $wallet->decrement('balance', $amount);
+
+            $wallet->transactions()->create([
+                'assessment_attempt_id' => $attempt->id,
+                'type' => TransactionType::ExamFee,
+                'amount' => -$amount,
+                'status' => TransactionStatus::Succeeded,
+                'description' => __('Exam fee: :title', ['title' => $attempt->assessment->title]),
+            ]);
         });
     }
 

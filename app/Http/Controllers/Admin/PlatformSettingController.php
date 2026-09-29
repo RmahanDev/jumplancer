@@ -49,16 +49,26 @@ class PlatformSettingController extends Controller
             SettingValueType::Money => ['nullable', 'integer', 'min:0', 'max:10000000000'],
             SettingValueType::Bool => ['required', 'boolean'],
             SettingValueType::Text => ['required', 'string', 'max:255'],
+            SettingValueType::Percent => ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:100'],
         };
 
         if ($choices = self::choices()[$platformSetting->setting_key] ?? null) {
             $rules[] = Rule::in($choices);
         }
 
-        // Percentages stay between 1 and 100.
-        if (str_ends_with($platformSetting->setting_key, '_percent')) {
+        // Whole-number percentages (the hiring deposit) stay between 1 and 100.
+        if ($platformSetting->value_type === SettingValueType::Int && str_ends_with($platformSetting->setting_key, '_percent')) {
             array_push($rules, 'min:1', 'max:100');
         }
+
+        // The mentor is paid out of the fees, so their share can never be more than the fees taken.
+        $fees = PlatformSetting::fees();
+        $rules[] = match ($platformSetting->setting_key) {
+            'mentor_share_percent' => 'max:'.($fees['platform'] + $fees['mentorship']),
+            'platform_fee_percent' => 'max:'.(100 - $fees['mentorship']),
+            'mentorship_fee_percent' => 'max:'.(100 - $fees['platform']),
+            default => 'nullable',
+        };
 
         $validated = $request->validate(['setting_value' => $rules]);
         $value = $validated['setting_value'];

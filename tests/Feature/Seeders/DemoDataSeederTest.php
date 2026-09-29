@@ -4,6 +4,7 @@ namespace Tests\Feature\Seeders;
 
 use App\Enums\ProjectStatus;
 use App\Enums\TransactionStatus;
+use App\Models\AssessmentAttempt;
 use App\Models\Contract;
 use App\Models\PortfolioMedia;
 use App\Models\Project;
@@ -83,6 +84,12 @@ class DemoDataSeederTest extends TestCase
         $this->assertTrue(Ticket::where('status', 'open')->whereNull('assigned_mentor_id')->exists());
         $this->assertTrue(PortfolioMedia::where('status', 'pending_review')->exists());
         $this->assertTrue(User::firstWhere('username', 'narges')->isSuspended());
+        $this->assertEqualsCanonicalizing(
+            ['passed', 'failed', 'voided'],
+            AssessmentAttempt::query()->distinct()->pluck('status')->map->value->all(),
+            'skill exams: passed, failed and voided attempts',
+        );
+        $this->assertSame(['Laravel'], User::firstWhere('username', 'freelancer')->skills()->wherePivot('is_verified', true)->pluck('name')->all());
 
         PortfolioMedia::all()->each(fn (PortfolioMedia $media) => Storage::disk('local')->assertExists($media->file_path));
     }
@@ -101,8 +108,8 @@ class DemoDataSeederTest extends TestCase
     public function test_demo_accounts_open_every_page_of_their_dashboards(): void
     {
         $pages = [
-            'admin' => ['admin.dashboard', 'admin.users.index', 'admin.admins.index', 'admin.projects.index', 'admin.contracts.index', 'admin.transactions.index', 'admin.withdrawals.index', 'admin.categories.index', 'admin.plans.index', 'admin.tickets.index', 'admin.contents.index', 'admin.moderation.fields', 'admin.moderation.violations', 'admin.moderation.portfolio', 'admin.settings.index'],
-            'support' => ['admin.dashboard', 'admin.users.index', 'admin.withdrawals.index', 'admin.tickets.index', 'admin.moderation.violations', 'wallet.show', 'profile.edit'],
+            'admin' => ['admin.dashboard', 'admin.users.index', 'admin.admins.index', 'admin.projects.index', 'admin.contracts.index', 'admin.transactions.index', 'admin.withdrawals.index', 'admin.categories.index', 'admin.plans.index', 'admin.tickets.index', 'admin.contents.index', 'admin.moderation.fields', 'admin.moderation.violations', 'admin.moderation.portfolio', 'admin.settings.index', 'admin.exams.index', 'admin.exams.create'],
+            'support' => ['admin.dashboard', 'admin.users.index', 'admin.withdrawals.index', 'admin.tickets.index', 'admin.moderation.violations', 'admin.exams.index', 'wallet.show', 'profile.edit'],
             'mentor' => ['mentor.dashboard', 'mentor.tickets.index', 'mentor.programs.index', 'mentor.reviews.index', 'mentor.contents.index', 'wallet.show', 'profile.edit'],
             'freelancer' => ['freelancer.dashboard', 'freelancer.projects.index', 'freelancer.proposals.index', 'freelancer.contracts.index', 'freelancer.portfolio.index', 'freelancer.fields.index', 'wallet.show', 'tickets.index', 'profile.edit'],
             'employer' => ['employer.dashboard', 'employer.projects.index', 'employer.proposals.index', 'employer.contracts.index', 'employer.plans.index', 'wallet.show', 'profile.edit'],

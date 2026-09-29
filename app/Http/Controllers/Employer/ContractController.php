@@ -15,6 +15,7 @@ use App\Http\Resources\ContractResource;
 use App\Models\Contract;
 use App\Models\PlatformSetting;
 use App\Models\Proposal;
+use App\Models\User;
 use App\Services\WalletLedger;
 use App\Support\PersianText;
 use Illuminate\Http\RedirectResponse;
@@ -36,13 +37,6 @@ use Inertia\Response;
  */
 class ContractController extends Controller
 {
-    /**
-     * Base platform fee, and the fee when the freelancer asked for a mentor (v2 rules).
-     */
-    public const FEE_PERCENT = 20;
-
-    public const FEE_WITH_MENTORSHIP_PERCENT = 25;
-
     public function __construct(private readonly WalletLedger $ledger) {}
 
     public function index(Request $request): Response
@@ -51,7 +45,7 @@ class ContractController extends Controller
         $status = $request->validate(['status' => ['nullable', Rule::enum(ContractStatus::class)]])['status'] ?? null;
 
         $contracts = $employer->employerContracts()
-            ->with(['project', 'freelancer', 'mentor', 'openDispute', 'milestones' => fn ($query) => $query->orderBy('sort_order')->orderBy('id')])
+            ->with(['project', 'freelancer', 'openDispute', 'milestones' => fn ($query) => $query->orderBy('sort_order')->orderBy('id')])
             ->withExists(['reviews as reviewed_by_viewer' => fn ($query) => $query->where('reviewer_id', $employer->id)])
             ->when($status, fn ($query, string $status) => $query->where('status', $status))
             ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [ContractStatus::Active->value])
@@ -85,11 +79,16 @@ class ContractController extends Controller
 
         $request->validate([
             'accept_deposit_terms' => ['accepted'],
+            'pay_shortfall' => ['boolean'],
         ], [
             'accept_deposit_terms.accepted' => __('Confirm the good-faith deposit terms to hire.'),
         ]);
 
-        $contract = DB::transaction(function () use ($proposal): Contract {
+        $paid = 0;
+
+        // One step for the employer: pay what the wallet is missing, hold the deposit, hire. If
+        // anything fails the payment is rolled back with the rest.
+        $contract = DB::transaction(function () use ($proposal, $request, &$paid): Contract {
             $proposal = Proposal::with(['project', 'freelancer.freelancerProfile'])->lockForUpdate()->findOrFail($proposal->id);
             $project = $proposal->project;
 
@@ -99,6 +98,7 @@ class ContractController extends Controller
 
             // Mentoring is the freelancer's choice, made on the proposal.
             $withMentorship = $proposal->mentorship_requested;
+            $fees = PlatformSetting::fees();
             $isFreeMentorship = $withMentorship && $this->useFreeMentorship($proposal);
 
             $contract = Contract::create([
@@ -109,13 +109,22 @@ class ContractController extends Controller
                 'amount' => $proposal->proposed_price,
                 'mentorship_included' => $withMentorship,
                 'is_free_mentorship' => $isFreeMentorship,
-                'fee_percent' => $withMentorship && ! $isFreeMentorship ? self::FEE_WITH_MENTORSHIP_PERCENT : self::FEE_PERCENT,
+                // Fees are frozen on the contract: base fee, plus the mentoring fee unless it is one of the free ones.
+                // The mentor's share is paid out of the fees either way.
+                'fee_percent' => $fees['platform'] + ($withMentorship && ! $isFreeMentorship ? $fees['mentorship'] : 0),
+                'mentor_share_percent' => $withMentorship ? min($fees['mentor_share'], $fees['platform'] + $fees['mentorship']) : 0,
                 'status' => ContractStatus::Active,
                 'started_at' => now(),
             ]);
 
             $contract->setRelation('project', $project);
-            $this->ledger->holdHireDeposit($contract, PlatformSetting::hireDepositPercent());
+            $percent = PlatformSetting::hireDepositPercent();
+
+            if ($request->boolean('pay_shortfall')) {
+                $paid = $this->payShortfall($request->user(), WalletLedger::depositFor($contract->amount, $percent));
+            }
+
+            $this->ledger->holdHireDeposit($contract, $percent);
 
             if ($withMentorship) {
                 $this->queueMentorshipTicket($contract, $proposal);
@@ -131,16 +140,45 @@ class ContractController extends Controller
             return $contract;
         });
 
-        $this->toast($contract->deposit_amount > 0
-            ? __('You hired :name. :deposit Toman is held as the good-faith deposit; the first milestones are paid from it.', [
+        $this->toast(match (true) {
+            $paid > 0 => __('You paid :paid Toman into your wallet and hired :name. :deposit Toman is held as the good-faith deposit; the first milestones are paid from it.', [
+                'paid' => PersianText::number($paid),
                 'name' => $contract->freelancer->name,
                 'deposit' => PersianText::number($contract->deposit_amount),
-            ])
-            : __('You hired :name. Add the first milestone and fund it to get started.', [
+            ]),
+            $contract->deposit_amount > 0 => __('You hired :name. :deposit Toman is held as the good-faith deposit; the first milestones are paid from it.', [
                 'name' => $contract->freelancer->name,
-            ]));
+                'deposit' => PersianText::number($contract->deposit_amount),
+            ]),
+            default => __('You hired :name. Add the first milestone and fund it to get started.', [
+                'name' => $contract->freelancer->name,
+            ]),
+        });
 
         return to_route('employer.contracts.index');
+    }
+
+    /**
+     * Top the wallet up with exactly what the deposit is missing (sandbox gateway until a real one
+     * is connected). Returns the amount paid.
+     *
+     * @throws ValidationException
+     */
+    private function payShortfall(User $employer, int $deposit): int
+    {
+        $shortfall = $deposit - (int) $employer->ensureWallet()->fresh()->balance;
+
+        if ($shortfall <= 0) {
+            return 0;
+        }
+
+        if (! config('jumplancer.payments.sandbox')) {
+            throw ValidationException::withMessages(['deposit' => __('Online payment is not available yet. Top up your wallet first.')]);
+        }
+
+        $this->ledger->deposit($employer, $shortfall);
+
+        return $shortfall;
     }
 
     /**

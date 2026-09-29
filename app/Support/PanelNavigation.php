@@ -107,6 +107,7 @@ class PanelNavigation
                 fn (): int => WithdrawalRequest::where('status', WithdrawalStatus::Pending)->count(), 'مالی', 'admin.withdrawals.*'),
             self::item('admin.tickets.index', 'تیکت‌های منتورینگ', 'bi-life-preserver', AdminPermission::ManageMentoring,
                 fn (): int => Ticket::where('status', TicketStatus::Open)->count(), 'منتورینگ و محتوا', 'admin.tickets.*'),
+            self::item('admin.exams.index', 'آزمون‌ساز', 'bi-ui-checks-grid', AdminPermission::ManageExams, group: 'منتورینگ و محتوا', active: 'admin.exams.*'),
             self::item('admin.contents.index', 'محتوای آموزشی', 'bi-journal-richtext', AdminPermission::ManageContent, group: 'منتورینگ و محتوا', active: 'admin.contents.*'),
             self::item('admin.moderation.fields', 'آزمون و حوزه‌ها', 'bi-bullseye', AdminPermission::ManageModeration,
                 fn (): int => FreelancerField::where('status', FreelancerFieldStatus::PendingExam)->count(), 'تخلفات و بازبینی', 'admin.moderation.fields'),
@@ -146,7 +147,7 @@ class PanelNavigation
             self::item('freelancer.proposals.index', 'پیشنهادهای من', 'bi-send', active: 'freelancer.proposals.*'),
             self::item('freelancer.contracts.index', 'قراردادها', 'bi-file-earmark-check', active: ['freelancer.contracts.*', 'freelancer.milestones.*']),
             self::item('freelancer.portfolio.index', 'نمونه‌کارها', 'bi-images', group: 'پروفایل حرفه‌ای', active: 'freelancer.portfolio.*'),
-            self::item('freelancer.fields.index', 'حوزه‌های کاری', 'bi-bullseye', group: 'پروفایل حرفه‌ای', active: 'freelancer.fields.*'),
+            self::item('freelancer.fields.index', 'حوزه‌ها و مهارت‌ها', 'bi-bullseye', group: 'پروفایل حرفه‌ای', active: ['freelancer.fields.*', 'freelancer.exams.*', 'freelancer.attempts.*']),
             self::item('wallet.show', 'کیف پول', 'bi-wallet2', group: 'حساب', active: 'wallet.*'),
             self::item('tickets.index', 'درخواست منتورینگ', 'bi-life-preserver', group: 'حساب', active: 'tickets.*'),
         ];

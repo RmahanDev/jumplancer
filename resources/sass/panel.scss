@@ -73,5 +73,6 @@ $theme-colors-border-subtle-dark: map-merge($theme-colors-border-subtle-dark, ('
 @import 'panel/charts';
 @import 'panel/overlays';
 @import 'panel/pages';
+@import 'panel/exams';
 @import 'panel/auth';
 /*rtl:end:ignore*/

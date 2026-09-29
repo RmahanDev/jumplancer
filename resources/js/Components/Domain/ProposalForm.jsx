@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import ModalForm from '../Form/ModalForm';
 import NumberInput from '../Form/NumberInput';
 import Switch from '../Form/Switch';
@@ -16,6 +17,7 @@ const TIPS = ['نیاز کارفرما را با کلمات خودت خلاصه 
  */
 export default function ProposalForm({ modal, storeUrl = null, updateUrl = null }) {
     const { project, proposal } = modal.record ?? {};
+    const { fees } = usePage().props;
     const editing = Boolean(proposal);
     const target = project ?? proposal?.project;
 
@@ -83,7 +85,7 @@ export default function ProposalForm({ modal, storeUrl = null, updateUrl = null 
                         name="mentorship_requested"
                         className="col-12"
                         label="برای این پروژه منتور می‌خواهم"
-                        description="اگر استخدام شوی، یک منتور باتجربه در طول پروژه همراهت است. کارمزد پلتفرم در این حالت ۵٪ بیشتر است؛ دو منتورینگ اول تازه‌کارها رایگان است. کارفرما این انتخاب را می‌بیند."
+                        description={`اگر استخدام شوی، یک منتور باتجربه در طول پروژه همراهت است. کارمزد پلتفرم در این حالت ${formatNumber(fees?.mentorship ?? 5)}٪ بیشتر است؛ دو منتورینگ اول تازه‌کارها رایگان است. کارفرما از این انتخاب باخبر نمی‌شود.`}
                     />
                     <div className="col-12">
                         <div className="small text-muted d-flex flex-wrap gap-3">

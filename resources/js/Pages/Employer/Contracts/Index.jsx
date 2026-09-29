@@ -204,15 +204,10 @@ export default function Index({ contracts, filters: initialFilters, balance, rou
                                     <div className="min-w-0">
                                         <h2 className="text-truncate">{contract.project?.title}</h2>
                                         <p>
-                                            قرارداد #{formatNumber(contract.id)} · {formatMoney(contract.amount)} · کارمزد {formatNumber(contract.fee_percent)}٪ · شروع {formatDate(contract.started_at ?? contract.created_at)}
+                                            قرارداد #{formatNumber(contract.id)} · {formatMoney(contract.amount)} · شروع {formatDate(contract.started_at ?? contract.created_at)}
                                         </p>
                                     </div>
                                     <div className="d-flex align-items-center gap-1">
-                                        {contract.mentorship_included && (
-                                            <Badge tone="info" icon="bi-mortarboard">
-                                                فریلنسر با منتور
-                                            </Badge>
-                                        )}
                                         <StatusBadge group="contractStatus" value={contract.status} />
                                         {active && (
                                             <RowActions>
@@ -265,19 +260,11 @@ export default function Index({ contracts, filters: initialFilters, balance, rou
                                 </header>
                                 <div className="jl-card-body">
                                     <div className="row g-3 mb-3">
-                                        <div className="col-md-4">
+                                        <div className="col-md-6">
                                             <div className="small text-muted mb-1">فریلنسر</div>
                                             <Person user={contract.freelancer} role="freelancer" />
                                         </div>
-                                        <div className="col-md-4">
-                                            <div className="small text-muted mb-1">منتور فریلنسر</div>
-                                            {contract.mentor ? (
-                                                <Person user={contract.mentor} role="mentor" />
-                                            ) : (
-                                                <span className="text-muted small">{contract.mentorship_included ? 'در صف منتورها' : 'فریلنسر منتور نخواسته'}</span>
-                                            )}
-                                        </div>
-                                        <div className="col-md-4">
+                                        <div className="col-md-6">
                                             <div className="small text-muted mb-1">پرداخت‌شده</div>
                                             <ContractProgress contract={contract} />
                                         </div>

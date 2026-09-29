@@ -235,7 +235,8 @@ class EmployerFlowTest extends TestCase
 
         $contract = Contract::sole();
         $this->assertSame(7_000_000, $contract->amount);
-        $this->assertSame(20, $contract->fee_percent, 'no mentor requested on the proposal');
+        $this->assertSame(20.0, $contract->fee_percent, 'no mentor requested on the proposal');
+        $this->assertSame(0.0, $contract->mentor_share_percent);
         $this->assertFalse($contract->mentorship_included);
         $this->assertSame(3_150_000, $contract->deposit_amount, '45% of the proposal price');
         $this->assertSame(3_150_000, $contract->deposit_balance);
@@ -267,6 +268,42 @@ class EmployerFlowTest extends TestCase
         $this->assertSame(1_000_000, $employer->wallet()->first()->balance);
     }
 
+    public function test_hiring_pays_the_missing_deposit_into_the_wallet_then_holds_it_in_one_step(): void
+    {
+        $employer = $this->employer(balance: 1_000_000);
+        $freelancer = $this->freelancer();
+        $proposal = Proposal::factory()->create(['project_id' => $this->openProject($employer)->id, 'freelancer_id' => $freelancer->id, 'proposed_price' => 5_000_000]);
+
+        $this->actingAs($employer)
+            ->post(route('employer.contracts.store', $proposal), ['accept_deposit_terms' => true, 'pay_shortfall' => true])
+            ->assertRedirect(route('employer.contracts.index'))
+            ->assertInertiaFlash('toast.message', "۱٬۲۵۰٬۰۰۰ تومان به کیف پولت واریز شد و {$freelancer->name} را استخدام کردی. ۲٬۲۵۰٬۰۰۰ تومان به‌عنوان امانت حسن انجام کار نگه داشته شد؛ اولین مرحله‌ها از همین مبلغ تأمین می‌شوند.");
+
+        $contract = Contract::sole();
+        $this->assertSame(2_250_000, $contract->deposit_amount);
+
+        $wallet = $employer->wallet()->first();
+        $this->assertSame([0, 2_250_000], [$wallet->balance, $wallet->held_balance]);
+        $this->assertSame(
+            [[TransactionType::Deposit, 1_000_000], [TransactionType::Deposit, 1_250_000], [TransactionType::EscrowHold, -2_250_000]],
+            $wallet->transactions()->orderBy('id')->get()->map(fn ($row) => [$row->type, (int) $row->amount])->all(),
+        );
+        $this->assertLedgerMatchesWallets();
+    }
+
+    public function test_a_failed_hire_does_not_keep_the_shortfall_payment(): void
+    {
+        $employer = $this->employer(balance: 1_000_000);
+        $proposal = Proposal::factory()->create(['project_id' => $this->openProject($employer)->id, 'freelancer_id' => $this->freelancer()->id, 'proposed_price' => 5_000_000, 'status' => ProposalStatus::Withdrawn]);
+
+        $this->actingAs($employer)
+            ->post(route('employer.contracts.store', $proposal), ['accept_deposit_terms' => true, 'pay_shortfall' => true])
+            ->assertSessionHasErrors('proposal');
+
+        $this->assertSame(1_000_000, $employer->wallet()->first()->balance);
+        $this->assertSame(1, $employer->wallet()->first()->transactions()->count());
+    }
+
     public function test_the_deposit_percent_comes_from_the_platform_settings(): void
     {
         PlatformSetting::where('setting_key', 'hire_deposit_percent')->update(['setting_value' => '30']);
@@ -295,7 +332,8 @@ class EmployerFlowTest extends TestCase
 
         $contract = Contract::sole();
         $this->assertTrue($contract->mentorship_included);
-        $this->assertSame(25, $contract->fee_percent, 'paid mentorship adds 5% to the platform fee');
+        $this->assertSame(25.0, $contract->fee_percent, 'paid mentorship adds 5% to the platform fee');
+        $this->assertSame(3.5, $contract->mentor_share_percent, 'the mentor gets 3.5% of every payment');
         $this->assertNull($contract->mentor_id, 'a mentor joins when they take the ticket');
 
         $ticket = Ticket::sole();
@@ -318,7 +356,8 @@ class EmployerFlowTest extends TestCase
 
         $contracts = Contract::orderBy('id')->get();
         $this->assertSame([true, true, false], $contracts->pluck('is_free_mentorship')->all());
-        $this->assertSame([20, 20, 25], $contracts->pluck('fee_percent')->all());
+        $this->assertSame([20.0, 20.0, 25.0], $contracts->pluck('fee_percent')->all(), 'free mentorships cost the freelancer nothing extra');
+        $this->assertSame([3.5, 3.5, 3.5], $contracts->pluck('mentor_share_percent')->all(), 'the platform pays the mentor of a free mentorship');
         $this->assertSame(2, $beginner->freelancerProfile()->first()->free_mentorships_used);
         $this->assertSame(3, Ticket::whereNotNull('contract_id')->count());
     }

@@ -25,6 +25,7 @@ class PortfolioMediaResource extends JsonResource
             'status' => $this->status->value,
             'rejection_reason' => $this->rejection_reason,
             'reviewed_at' => $this->reviewed_at?->toIso8601String(),
+            'reviewer' => $this->whenLoaded('reviewer', fn () => UserResource::summary($this->reviewer)),
             'created_at' => $this->created_at?->toIso8601String(),
             'url' => route('portfolio-media.show', $this->resource),
             'item' => $this->whenLoaded('portfolioItem', fn () => [

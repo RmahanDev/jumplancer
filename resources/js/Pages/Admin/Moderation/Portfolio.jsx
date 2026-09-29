@@ -4,8 +4,10 @@ import PageHeader from '../../../Components/Panel/PageHeader';
 import Pagination from '../../../Components/Panel/Pagination';
 import { Person } from '../../../Components/UI/Avatar';
 import { StatusBadge } from '../../../Components/UI/Badge';
+import { confirm } from '../../../Components/UI/ConfirmDialog';
 import EmptyState from '../../../Components/UI/EmptyState';
 import Tabs from '../../../Components/UI/Tabs';
+import UserName from '../../../Components/UI/UserName';
 import { useFilters } from '../../../hooks/useFilters';
 import { useModal } from '../../../hooks/useModal';
 import { put } from '../../../lib/actions';
@@ -19,7 +21,7 @@ function RejectMediaForm({ modal, routes }) {
         <ModalForm
             open={modal.open}
             onClose={modal.close}
-            title="رد فایل نمونه‌کار"
+            title={media?.status === 'approved' ? 'تجدیدنظر: رد فایل تأییدشده' : 'رد فایل نمونه‌کار'}
             subtitle={media?.original_filename}
             icon="bi-file-earmark-x"
             tone="danger"
@@ -49,9 +51,27 @@ export default function Portfolio({ media, filters: initialFilters, counts, rout
     const rejecter = useModal();
     const total = Object.values(counts).reduce((sum, count) => sum + Number(count), 0);
 
+    // A human mistake can be corrected: a rejected file can still be approved later.
+    const reapprove = async (file) => {
+        const ok = await confirm({
+            title: 'تأیید دوباره‌ی فایل؟',
+            message: `«${file.original_filename}» قبلاً رد شده بود. با تأیید، برای کارفرماها نمایش داده می‌شود.`,
+            confirmLabel: 'تأیید فایل',
+            tone: 'primary',
+            icon: 'bi-check2-circle',
+        });
+
+        if (ok) {
+            put(fillRoute(routes.update, file.id), { status: 'approved' });
+        }
+    };
+
     return (
         <>
-            <PageHeader title="فایل‌های نمونه‌کار" description="هر فایل نمونه‌کار قبل از نمایش به کارفرماها اینجا بررسی می‌شود؛ اطلاعات تماس داخل تصویر یا PDF مجاز نیست." />
+            <PageHeader
+                title="فایل‌های نمونه‌کار"
+                description="هر فایل نمونه‌کار قبل از نمایش به کارفرماها اینجا بررسی می‌شود؛ اطلاعات تماس داخل تصویر یا PDF مجاز نیست. اگر اشتباهی رخ داد، فایل تأییدشده را می‌شود بعداً رد کرد و فایل ردشده را تأیید."
+            />
 
             <Tabs
                 className="mb-3"
@@ -97,7 +117,26 @@ export default function Portfolio({ media, filters: initialFilters, counts, rout
                                             </button>
                                         </div>
                                     ) : (
-                                        <div className="small text-muted mt-auto">بررسی‌شده {formatRelative(file.reviewed_at)}</div>
+                                        <div className="mt-auto d-grid gap-2">
+                                            <div className="small text-muted">
+                                                بررسی‌شده {formatRelative(file.reviewed_at)}
+                                                {file.reviewer && (
+                                                    <>
+                                                        {' '}
+                                                        توسط <UserName user={file.reviewer} />
+                                                    </>
+                                                )}
+                                            </div>
+                                            {file.status === 'approved' ? (
+                                                <button type="button" className="btn btn-soft-danger btn-sm" onClick={() => rejecter.show(file)}>
+                                                    <i className="bi bi-arrow-counterclockwise" /> تجدیدنظر: رد فایل
+                                                </button>
+                                            ) : (
+                                                <button type="button" className="btn btn-soft btn-sm" onClick={() => reapprove(file)}>
+                                                    <i className="bi bi-arrow-counterclockwise" /> تجدیدنظر: تأیید فایل
+                                                </button>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             </article>

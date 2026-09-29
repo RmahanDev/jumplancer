@@ -276,6 +276,12 @@ return [
         'decision' => 'تصمیم',
         'action' => 'عملیات',
         'plan_id' => 'پلن',
+        'skill_id' => 'مهارت',
+        'time_limit_minutes' => 'زمان آزمون',
+        'total_score' => 'جمع نمرات',
+        'pass_score' => 'حداقل نمره‌ی قبولی',
+        'questions' => 'سؤال‌ها',
+        'answers' => 'جواب‌ها',
     ],
 
 ];

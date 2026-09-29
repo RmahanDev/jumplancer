@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * A skill test or a field entry exam. Passing a field exam activates a freelancer field.
  */
-#[Fillable(['scope', 'skill_id', 'category_id', 'target_level', 'title', 'description', 'pass_score', 'time_limit_minutes', 'is_active'])]
+#[Fillable(['scope', 'skill_id', 'category_id', 'target_level', 'title', 'description', 'total_score', 'pass_score', 'time_limit_minutes', 'is_active'])]
 class Assessment extends Model
 {
     /** @use HasFactory<AssessmentFactory> */
@@ -30,6 +30,7 @@ class Assessment extends Model
         return [
             'scope' => AssessmentScope::class,
             'target_level' => ExperienceLevel::class,
+            'total_score' => 'integer',
             'pass_score' => 'integer',
             'time_limit_minutes' => 'integer',
             'is_active' => 'boolean',
@@ -50,6 +51,24 @@ class Assessment extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    /**
+     * @return HasMany<AssessmentQuestion, $this>
+     */
+    public function questions(): HasMany
+    {
+        return $this->hasMany(AssessmentQuestion::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * Staff member who wrote the exam.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function author(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     /**

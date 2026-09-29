@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * deposit_balance is the part of it not yet spent on milestones. Both stay in the employer's
  * held_balance until milestones use them, the contract ends, or an expert decides a dispute.
  */
-#[Fillable(['project_id', 'proposal_id', 'employer_id', 'freelancer_id', 'mentor_id', 'amount', 'deposit_amount', 'deposit_balance', 'mentorship_included', 'is_free_mentorship', 'fee_percent', 'status', 'started_at', 'completed_at'])]
+#[Fillable(['project_id', 'proposal_id', 'employer_id', 'freelancer_id', 'mentor_id', 'amount', 'deposit_amount', 'deposit_balance', 'mentorship_included', 'is_free_mentorship', 'fee_percent', 'mentor_share_percent', 'status', 'started_at', 'completed_at'])]
 class Contract extends Model
 {
     /** @use HasFactory<ContractFactory> */
@@ -39,7 +39,8 @@ class Contract extends Model
             'deposit_balance' => 'integer',
             'mentorship_included' => 'boolean',
             'is_free_mentorship' => 'boolean',
-            'fee_percent' => 'integer',
+            'fee_percent' => 'float',
+            'mentor_share_percent' => 'float',
             'status' => ContractStatus::class,
             'started_at' => 'datetime',
             'completed_at' => 'datetime',

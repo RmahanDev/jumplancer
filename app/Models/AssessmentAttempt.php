@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AttemptStatus;
 use App\Enums\ExamPaymentStatus;
 use Database\Factories\AssessmentAttemptFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * One try at an assessment. Extra-field exams must be paid before they start.
  */
-#[Fillable(['assessment_id', 'freelancer_field_id', 'score', 'passed', 'fee_amount', 'payment_status', 'started_at', 'finished_at'])]
+#[Fillable(['assessment_id', 'freelancer_field_id', 'status', 'warnings', 'score', 'correct_count', 'answers', 'void_reason', 'passed', 'fee_amount', 'payment_status', 'started_at', 'expires_at', 'finished_at'])]
 class AssessmentAttempt extends Model
 {
     /** @use HasFactory<AssessmentAttemptFactory> */
@@ -27,7 +28,12 @@ class AssessmentAttempt extends Model
     protected function casts(): array
     {
         return [
+            'status' => AttemptStatus::class,
+            'warnings' => 'integer',
             'score' => 'integer',
+            'correct_count' => 'integer',
+            'answers' => 'array',
+            'expires_at' => 'datetime',
             'passed' => 'boolean',
             'fee_amount' => 'integer',
             'payment_status' => ExamPaymentStatus::class,

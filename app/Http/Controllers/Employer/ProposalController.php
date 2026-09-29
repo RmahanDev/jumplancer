@@ -31,7 +31,7 @@ class ProposalController extends Controller
         ]);
 
         $proposals = Proposal::query()
-            ->with(['project', 'freelancer.freelancerProfile', 'mentorReviewer', 'contract'])
+            ->with(['project', 'freelancer.freelancerProfile', 'freelancer.skills' => fn ($query) => $query->wherePivot('is_verified', true)->orderBy('name'), 'contract'])
             ->whereHas('project', fn (Builder $query) => $query->where('employer_id', $employer->id))
             ->where('status', '!=', ProposalStatus::Draft)
             ->when($filters['project'] ?? null, fn (Builder $query, int $project) => $query->where('project_id', $project))

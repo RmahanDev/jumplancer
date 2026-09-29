@@ -55,7 +55,8 @@ class TransactionController extends Controller
             ],
             'summary' => [
                 'deposits' => $succeeded(TransactionType::Deposit),
-                'fees' => $succeeded(TransactionType::Fee),
+                // Platform fee income after the mentors' share (paid out of the fees).
+                'fees' => $succeeded(TransactionType::Fee) - $succeeded(TransactionType::MentorPayout),
                 'plans' => $succeeded(TransactionType::PlanPurchase),
                 'released' => $succeeded(TransactionType::EscrowRelease),
                 'escrow' => (int) Wallet::sum('held_balance'),

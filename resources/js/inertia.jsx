@@ -1,11 +1,14 @@
 // Entry for the Inertia (React) dashboards. Page components live in resources/js/Pages and
-// every page is wrapped in the persistent PanelLayout (sidebar, topbar, palette, toasts).
+// every page is wrapped in the persistent PanelLayout (sidebar, topbar, palette, toasts), except BARE_PAGES.
 import './app';
 import { createInertiaApp, router } from '@inertiajs/react';
 import { toast } from './Components/UI/Toaster';
 import PanelLayout from './Layouts/PanelLayout';
 
 const APP_NAME = 'جامپ‌لنسر';
+
+// Pages that render without the panel chrome (the exam page has its own top bar).
+const BARE_PAGES = ['Freelancer/Exams/Take'];
 
 // One-time messages from the server: $this->toast('...') in a controller (Inertia flash data).
 router.on('flash', (event) => {
@@ -42,7 +45,7 @@ createInertiaApp({
 
         return page();
     },
-    layout: () => PanelLayout,
+    layout: (name) => (BARE_PAGES.includes(name) ? null : PanelLayout),
     progress: {
         color: '#f7941d',
         delay: 200,

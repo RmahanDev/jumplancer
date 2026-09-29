@@ -257,6 +257,19 @@ export default function Profile({ account, profiles, options: choices, routes })
                                     <Row label="آمادگی کار">
                                         <StatusBadge group="availability" value={profiles.freelancer.availability} />
                                     </Row>
+                                    <Row label="مهارت‌های تأییدشده">
+                                        {profiles.freelancer.verified_skills?.length > 0 ? (
+                                            <span className="d-inline-flex flex-wrap gap-1">
+                                                {profiles.freelancer.verified_skills.map((skill) => (
+                                                    <Badge key={skill.id} tone="success" icon="bi-patch-check-fill">
+                                                        <span className="ltr d-inline-block">{skill.name}</span>
+                                                    </Badge>
+                                                ))}
+                                            </span>
+                                        ) : (
+                                            <span className="small text-muted">با قبولی در آزمون مهارت، اینجا نشان داده می‌شود.</span>
+                                        )}
+                                    </Row>
                                 </dl>
                             </div>
                         </section>

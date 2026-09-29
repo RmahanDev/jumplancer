@@ -165,6 +165,12 @@ export const ENUMS = {
         ['active', 'فعال', 'success'],
         ['rejected', 'رد شد', 'danger'],
     ]),
+    attemptStatus: withTones([
+        ['in_progress', 'در حال آزمون', 'info'],
+        ['passed', 'قبول', 'success'],
+        ['failed', 'مردود', 'danger'],
+        ['voided', 'باطل شد', 'secondary'],
+    ]),
     violationType: withTones([
         ['phone', 'شماره تلفن', 'danger'],
         ['email', 'ایمیل', 'danger'],
@@ -237,6 +243,7 @@ export const PERMISSIONS = {
     'mentoring.manage': { label: 'منتورینگ', description: 'تیکت‌ها و واگذاری آن‌ها به منتورها', icon: 'bi-life-preserver' },
     'content.manage': { label: 'محتوای آموزشی', description: 'مقاله، ویدیو، چک‌لیست و نقشه‌ی راه', icon: 'bi-journal-richtext' },
     'settings.manage': { label: 'تنظیمات پلتفرم', description: 'قوانین کسب‌وکار مثل پروژه‌ی رایگان و هزینه‌ی آزمون', icon: 'bi-sliders' },
+    'exams.manage': { label: 'آزمون‌ساز', description: 'طراحی آزمون مهارت‌ها: سوال‌ها، گزینه‌ها، زمان و نمره‌ی قبولی', icon: 'bi-ui-checks-grid' },
     'withdrawals.manage': { label: 'بازگشت وجه به کارت', description: 'بررسی درخواست‌ها، پرداخت با شماره‌ی پیگیری و رسید، یا رد درخواست', icon: 'bi-bank' },
 };
 
@@ -252,6 +259,24 @@ export const SETTINGS = {
         icon: 'bi-shield-exclamation',
         help: 'وقتی شماره، ایمیل یا لینک در چت پروژه فرستاده شود.',
         choiceLabels: { suspend: 'تعلیق فوری حساب', warning: 'فقط هشدار', block_message: 'فقط مسدود کردن پیام' },
+    },
+    platform_fee_percent: {
+        label: 'کارمزد پلتفرم از فریلنسر',
+        unit: 'درصد',
+        icon: 'bi-percent',
+        help: 'از هر مبلغی که به فریلنسر پرداخت می‌شود کم می‌شود. روی قراردادهای تازه اعمال می‌شود.',
+    },
+    mentorship_fee_percent: {
+        label: 'کارمزد اضافه‌ی منتورینگ',
+        unit: 'درصد',
+        icon: 'bi-mortarboard',
+        help: 'وقتی فریلنسر در پیشنهادش منتور خواسته، این درصد به کارمزد اضافه می‌شود (به‌جز منتورینگ‌های رایگان تازه‌کارها).',
+    },
+    mentor_share_percent: {
+        label: 'سهم منتور از هر پرداخت',
+        unit: 'درصد',
+        icon: 'bi-person-check',
+        help: 'این درصد از مبلغ هر مرحله به کیف پول منتور قرارداد واریز می‌شود و باقی کارمزد سهم سایت است.',
     },
     hire_deposit_percent: {
         label: 'امانت حسن انجام کار هنگام استخدام',
